@@ -1,0 +1,535 @@
+/* =========================================================================
+   Internal Fit Lab. Same tokens as the store, but deliberately plainer —
+   this is a tooling surface, not a shopping one.
+   ========================================================================= */
+
+@import './tokens.css';
+
+.fitlab { padding-bottom: var(--s-16); }
+
+.fitlab__head { padding-block: var(--s-3) var(--s-8); }
+.fitlab__title { font-size: var(--fs-3xl); margin-top: var(--s-2); }
+
+.fitlab__lede {
+  margin-top: var(--s-3);
+  max-width: 68ch;
+  color: var(--text-secondary);
+  line-height: var(--lh-normal);
+}
+
+.fitlab__lede--tight { margin-top: var(--s-1); margin-bottom: var(--s-4); font-size: var(--fs-sm); }
+
+.fitlab__section { padding-block: var(--s-8); border-top: 1px solid var(--border-subtle); }
+
+.fitlab__section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-4);
+  flex-wrap: wrap;
+  margin-bottom: var(--s-5);
+}
+
+.fitlab__h2 {
+  font-size: var(--fs-xs);
+  font-weight: 700;
+  letter-spacing: var(--track-wider);
+  text-transform: uppercase;
+  margin-bottom: var(--s-5);
+}
+
+.fitlab__section-head .fitlab__h2 { margin-bottom: 0; }
+
+/* ---------- Cards ---------- */
+.fitlab__grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--s-4); }
+
+.fitlab__card {
+  padding: var(--s-5);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--r-sm);
+  background: var(--bg-muted);
+}
+
+.fitlab__card-label {
+  font-size: var(--fs-2xs);
+  letter-spacing: var(--track-wide);
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+}
+
+.fitlab__card-value {
+  margin-top: var(--s-2);
+  font-family: var(--font-display);
+  font-size: var(--fs-2xl);
+  text-transform: capitalize;
+}
+
+.fitlab__card-value--sm { font-size: var(--fs-lg); text-transform: none; }
+.fitlab__card-note { margin-top: var(--s-1); font-size: var(--fs-xs); color: var(--text-tertiary); }
+
+.fitlab__actions { display: flex; gap: var(--s-2); margin-top: var(--s-4); flex-wrap: wrap; }
+
+.fitlab__deflist { display: grid; gap: var(--s-2); margin-top: var(--s-3); }
+.fitlab__deflist > div { display: grid; grid-template-columns: 92px 1fr; gap: var(--s-3); font-size: var(--fs-sm); }
+.fitlab__deflist dt { color: var(--text-tertiary); }
+.fitlab__deflist dd { color: var(--text-primary); }
+
+/* ---------- Scope switch ---------- */
+.fitlab__scope { display: flex; gap: var(--s-2); }
+
+.fitlab__scope-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-2);
+  height: 34px;
+  padding-inline: var(--s-4);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--r-full);
+  font-size: var(--fs-xs);
+  text-transform: capitalize;
+  color: var(--text-secondary);
+  transition: all var(--dur) var(--ease);
+}
+
+.fitlab__scope-btn.is-active {
+  background: var(--c-ink-900);
+  border-color: var(--c-ink-900);
+  color: var(--c-white);
+}
+
+.fitlab__scope-count { font-variant-numeric: tabular-nums; opacity: 0.7; }
+
+/* ---------- Metrics ---------- */
+.fitlab__metrics { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--s-4); }
+
+.fitlab__metric {
+  padding: var(--s-5);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--r-sm);
+}
+
+.fitlab__metric.is-primary { border-color: var(--accent); background: var(--c-pink-050); }
+
+.fitlab__metric-label {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  font-size: var(--fs-sm);
+  font-weight: 600;
+}
+
+.fitlab__badge {
+  padding: 1px 6px;
+  border-radius: var(--r-xs);
+  background: var(--accent);
+  color: var(--c-white);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: var(--track-wide);
+  text-transform: uppercase;
+}
+
+.fitlab__metric-value {
+  margin-top: var(--s-2);
+  font-family: var(--font-display);
+  font-size: var(--fs-2xl);
+  font-variant-numeric: tabular-nums;
+}
+
+.fitlab__nodata { font-family: var(--font-sans); font-size: var(--fs-base); color: var(--text-tertiary); }
+
+/* Raw counts, shown instead of a percentage when the denominator is too
+   small for one to mean anything. */
+.fitlab__smallsample {
+  font-family: var(--font-sans);
+  font-size: var(--fs-lg);
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+.fitlab__metric-note { margin-top: var(--s-1); font-size: var(--fs-xs); color: var(--text-tertiary); }
+
+.fitlab__caveat {
+  margin-top: var(--s-5);
+  padding: var(--s-4);
+  border-radius: var(--r-sm);
+  background: var(--c-warning-bg);
+  color: var(--c-warning);
+  font-size: var(--fs-sm);
+  line-height: var(--lh-normal);
+}
+
+/* ---------- Funnel ---------- */
+.fitlab__funnel { display: grid; gap: var(--s-2); }
+
+.fitlab__funnel li {
+  display: grid;
+  grid-template-columns: 190px 1fr 44px 210px;
+  align-items: center;
+  gap: var(--s-4);
+  font-size: var(--fs-sm);
+}
+
+.fitlab__funnel-label { color: var(--text-secondary); }
+
+.fitlab__funnel-track {
+  height: 10px;
+  border-radius: var(--r-full);
+  background: var(--c-ink-100);
+  overflow: hidden;
+}
+
+.fitlab__funnel-fill { display: block; height: 100%; background: var(--c-ink-800); }
+.fitlab__funnel-count { text-align: right; font-weight: 700; font-variant-numeric: tabular-nums; }
+.fitlab__funnel-event { font-size: var(--fs-xs); color: var(--text-tertiary); }
+
+.fitlab__split { margin-top: var(--s-5); font-size: var(--fs-sm); color: var(--text-secondary); }
+
+/* ---------- Guardrails ---------- */
+.fitlab__guardrails { display: grid; gap: var(--s-2); }
+
+.fitlab__guardrails li {
+  display: grid;
+  grid-template-columns: 260px 1fr;
+  gap: var(--s-4);
+  padding-block: var(--s-2);
+  border-bottom: 1px solid var(--c-ink-100);
+  font-size: var(--fs-sm);
+}
+
+.fitlab__guardrail-label { font-weight: 600; }
+.fitlab__guardrail-status { color: var(--text-tertiary); }
+
+/* ---------- Log ---------- */
+.fitlab__empty { font-size: var(--fs-sm); color: var(--text-secondary); }
+.fitlab__empty a { color: var(--accent); text-decoration: underline; text-underline-offset: 3px; }
+
+.fitlab__logwrap { overflow-x: auto; border: 1px solid var(--border-subtle); border-radius: var(--r-sm); }
+
+.fitlab__log { width: 100%; border-collapse: collapse; font-size: var(--fs-xs); }
+
+.fitlab__log th,
+.fitlab__log td {
+  padding: var(--s-2) var(--s-3);
+  text-align: left;
+  border-bottom: 1px solid var(--c-ink-100);
+  white-space: nowrap;
+}
+
+.fitlab__log thead th {
+  position: sticky;
+  top: 0;
+  background: var(--bg-muted);
+  font-size: var(--fs-2xs);
+  letter-spacing: var(--track-wide);
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+}
+
+.fitlab__log code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+.fitlab__props { white-space: normal; color: var(--text-secondary); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+
+/* ---------- Hypothesis ---------- */
+.fitlab__hypothesis {
+  margin-top: var(--s-6);
+  padding: var(--s-5);
+  border: 1px solid var(--c-pink-100);
+  border-left: 3px solid var(--accent);
+  border-radius: var(--r-sm);
+  background: var(--c-pink-050);
+  max-width: 82ch;
+}
+
+.fitlab__hypothesis-label {
+  font-size: var(--fs-2xs);
+  font-weight: 700;
+  letter-spacing: var(--track-wider);
+  text-transform: uppercase;
+  color: var(--c-pink-600);
+}
+
+.fitlab__hypothesis-text {
+  margin-top: var(--s-2);
+  font-size: var(--fs-md);
+  line-height: var(--lh-normal);
+}
+
+.fitlab__hypothesis-note {
+  margin-top: var(--s-3);
+  font-size: var(--fs-sm);
+  color: var(--text-secondary);
+}
+
+/* ---------- Causal chains ---------- */
+.fitlab__chains { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s-5); }
+
+.fitlab__chain {
+  padding: var(--s-5);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--r-sm);
+  background: var(--bg-muted);
+}
+
+.fitlab__chain--test { border-color: var(--c-pink-100); background: var(--c-pink-050); }
+
+.fitlab__chain-title {
+  font-size: var(--fs-2xs);
+  font-weight: 700;
+  letter-spacing: var(--track-wide);
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+  margin-bottom: var(--s-4);
+}
+
+.fitlab__steps { display: grid; gap: 0; margin-bottom: var(--s-5); }
+.fitlab__steps:last-child { margin-bottom: 0; }
+
+.fitlab__steps li {
+  position: relative;
+  padding: 6px 0 6px var(--s-5);
+  font-size: var(--fs-sm);
+  color: var(--text-secondary);
+}
+
+.fitlab__steps li::before {
+  content: '';
+  position: absolute;
+  left: 5px;
+  top: 15px;
+  width: 5px;
+  height: 5px;
+  border-radius: var(--r-full);
+  background: var(--c-ink-400);
+}
+
+.fitlab__steps li:not(:last-child)::after {
+  content: '';
+  position: absolute;
+  left: 7px;
+  top: 22px;
+  bottom: -2px;
+  width: 1px;
+  background: var(--border-strong);
+}
+
+.fitlab__steps li.is-outcome { font-weight: 600; color: var(--text-primary); }
+.fitlab__steps li.is-outcome::before { background: var(--accent); }
+
+/* ---------- Metric definitions ---------- */
+.fitlab__metricdef {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--s-6);
+  margin-top: var(--s-6);
+  padding-top: var(--s-6);
+  border-top: 1px solid var(--border-subtle);
+}
+
+.fitlab__primary {
+  margin-top: var(--s-2);
+  font-family: var(--font-display);
+  font-size: var(--fs-lg);
+  color: var(--accent);
+}
+
+.fitlab__inline-list { margin-top: var(--s-2); display: grid; gap: 4px; }
+
+.fitlab__inline-list li {
+  font-size: var(--fs-sm);
+  color: var(--text-secondary);
+  padding-left: var(--s-4);
+  position: relative;
+}
+
+.fitlab__inline-list li::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 9px;
+  width: 4px;
+  height: 4px;
+  border-radius: var(--r-full);
+  background: var(--c-ink-400);
+}
+
+/* ---------- Arms ---------- */
+.fitlab__arms { display: grid; grid-template-columns: 1fr 1fr 1.2fr; gap: var(--s-4); }
+.fitlab__arms--two { grid-template-columns: 1fr 1fr; }
+
+.fitlab__arm {
+  padding: var(--s-5);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--r-sm);
+}
+
+.fitlab__arm--treatment { border-color: var(--c-pink-100); background: var(--c-pink-050); }
+.fitlab__arm--lift { background: var(--c-ink-900); color: var(--c-white); border-color: var(--c-ink-900); }
+.fitlab__arm--lift .fitlab__card-label,
+.fitlab__arm--lift .fitlab__card-note { color: var(--c-ink-400); }
+
+.fitlab__arm-value {
+  margin-top: var(--s-2);
+  font-family: var(--font-display);
+  font-size: var(--fs-2xl);
+  line-height: 1.15;
+  font-variant-numeric: tabular-nums;
+}
+
+.fitlab__arm--lift .fitlab__nodata { color: var(--c-ink-400); }
+
+.fitlab__armstats {
+  display: grid;
+  gap: 4px;
+  margin-top: var(--s-4);
+  padding-top: var(--s-3);
+  border-top: 1px solid var(--border-subtle);
+}
+
+.fitlab__armstats > div { display: flex; justify-content: space-between; gap: var(--s-3); font-size: var(--fs-xs); }
+.fitlab__armstats dt { color: var(--text-tertiary); }
+.fitlab__armstats dd { font-weight: 600; font-variant-numeric: tabular-nums; }
+
+.fitlab__arm-warn {
+  margin-top: var(--s-3);
+  font-size: var(--fs-xs);
+  line-height: var(--lh-snug);
+  color: var(--c-warning);
+}
+
+.fitlab__arm--lift .fitlab__arm-warn { color: var(--c-ink-400); }
+
+.fitlab__requirement {
+  margin-top: var(--s-4);
+  padding: var(--s-4);
+  border-radius: var(--r-sm);
+  background: var(--c-warning-bg);
+  color: var(--c-warning);
+  font-size: var(--fs-sm);
+  line-height: var(--lh-normal);
+}
+
+/* ---------- Impact model ---------- */
+.fitlab__badge--warn {
+  background: var(--c-warning);
+  color: var(--c-white);
+  padding: 3px var(--s-3);
+  border-radius: var(--r-xs);
+  font-size: var(--fs-2xs);
+  font-weight: 700;
+  letter-spacing: var(--track-wide);
+  text-transform: uppercase;
+}
+
+.fitlab__model { display: grid; grid-template-columns: 340px 1fr; gap: var(--s-6); margin-top: var(--s-5); }
+
+.fitlab__inputs {
+  display: grid;
+  gap: var(--s-4);
+  align-content: start;
+  padding: var(--s-5);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--r-sm);
+  background: var(--bg-muted);
+}
+
+.fitlab__input { display: grid; gap: 6px; font-size: var(--fs-xs); color: var(--text-secondary); }
+.fitlab__input b { color: var(--text-primary); font-variant-numeric: tabular-nums; }
+
+.fitlab__input input[type='number'] {
+  height: 38px;
+  padding-inline: var(--s-3);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r-sm);
+  background: var(--c-white);
+  font-size: var(--fs-base);
+  font-variant-numeric: tabular-nums;
+}
+
+.fitlab__input input[type='number']:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+.fitlab__input input[type='range'] { accent-color: var(--accent); width: 100%; }
+
+.fitlab__outputs { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s-4); align-content: start; }
+
+.fitlab__output {
+  padding: var(--s-5);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--r-sm);
+}
+
+.fitlab__output.is-primary { border-color: var(--accent); background: var(--c-pink-050); }
+
+.fitlab__output-value {
+  margin-top: var(--s-2);
+  font-family: var(--font-display);
+  font-size: var(--fs-2xl);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------- Validation + limitations ---------- */
+.fitlab__validate { display: grid; gap: 0; counter-reset: vq; }
+
+.fitlab__validate li {
+  counter-increment: vq;
+  display: grid;
+  grid-template-columns: 36px 1fr;
+  gap: var(--s-3);
+  padding: var(--s-3) 0;
+  border-bottom: 1px solid var(--border-subtle);
+  font-size: var(--fs-base);
+  color: var(--text-secondary);
+}
+
+.fitlab__validate li::before {
+  content: counter(vq, decimal-leading-zero);
+  font-size: var(--fs-xs);
+  font-weight: 700;
+  color: var(--accent);
+  padding-top: 2px;
+}
+
+.fitlab__two { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s-6); }
+
+.fitlab__bullets { display: grid; gap: var(--s-2); margin-top: var(--s-3); }
+
+.fitlab__bullets li {
+  position: relative;
+  padding-left: var(--s-5);
+  font-size: var(--fs-sm);
+  color: var(--text-secondary);
+}
+
+.fitlab__bullets li::before {
+  content: '×';
+  position: absolute;
+  left: 0;
+  color: var(--c-danger);
+  font-weight: 700;
+}
+
+.fitlab__bullets--go li::before { content: '→'; color: var(--c-success); }
+
+.fitlab__card--narrow { max-width: 360px; }
+
+/* ---------- Responsive ---------- */
+@media (max-width: 1024px) {
+  .fitlab__grid,
+  .fitlab__metrics { grid-template-columns: repeat(2, 1fr); }
+  .fitlab__chains,
+  .fitlab__two { grid-template-columns: 1fr; }
+  .fitlab__metricdef { grid-template-columns: 1fr; gap: var(--s-5); }
+  .fitlab__arms { grid-template-columns: 1fr 1fr; }
+  .fitlab__arm--lift { grid-column: 1 / -1; }
+  .fitlab__model { grid-template-columns: 1fr; }
+  .fitlab__funnel li { grid-template-columns: 150px 1fr 40px; }
+  .fitlab__funnel-event { display: none; }
+}
+
+@media (max-width: 640px) {
+  .fitlab__grid,
+  .fitlab__metrics { grid-template-columns: 1fr; }
+  .fitlab__arms,
+  .fitlab__arms--two,
+  .fitlab__outputs { grid-template-columns: 1fr; }
+  .fitlab__guardrails li { grid-template-columns: 1fr; gap: 2px; }
+  .fitlab__funnel li { grid-template-columns: 1fr 40px; }
+  .fitlab__funnel-track { display: none; }
+}

@@ -1,0 +1,127 @@
+/* =========================================================================
+   Nykaa Fit — Design tokens
+   Single source of truth for colour, type, spacing, radius, elevation.
+   Every component stylesheet consumes these; no raw hex outside this file
+   (exceptions: product colour swatches, which are data-driven).
+   ========================================================================= */
+
+:root {
+  /* ---- Brand ---- */
+  --c-pink-600: #d1005a;
+  --c-pink-500: #e5397f;
+  --c-pink-400: #f56ba3;
+  --c-pink-100: #ffe6f0;
+  --c-pink-050: #fff5f9;
+
+  /* ---- Ink (text + surfaces) ---- */
+  --c-ink-900: #14100f;
+  --c-ink-800: #2b2523;
+  --c-ink-700: #4a423f;
+  --c-ink-600: #6d635f;
+  --c-ink-500: #8e8480;
+  --c-ink-400: #b3aaa6;
+  --c-ink-300: #d8d2cf;
+  --c-ink-200: #e9e5e3;
+  --c-ink-100: #f4f1f0;
+  --c-ink-050: #faf8f7;
+  --c-white: #ffffff;
+
+  /* ---- Support ---- */
+  --c-success: #0f7a52;
+  --c-success-bg: #e6f4ee;
+  --c-warning: #9a6400;
+  --c-warning-bg: #fdf3e0;
+  --c-danger: #c02626;
+  --c-danger-bg: #fdecec;
+  --c-gold: #b98900;
+
+  /* ---- Semantic ---- */
+  --bg-page: var(--c-white);
+  --bg-muted: var(--c-ink-050);
+  --bg-sunken: var(--c-ink-100);
+  --text-primary: var(--c-ink-900);
+  --text-secondary: var(--c-ink-600);
+  --text-tertiary: var(--c-ink-500);
+  --border-subtle: var(--c-ink-200);
+  --border-strong: var(--c-ink-300);
+  --accent: var(--c-pink-500);
+  --accent-hover: var(--c-pink-600);
+
+  /* ---- Typography ---- */
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-display: 'Marcellus', 'Times New Roman', Georgia, serif;
+
+  --fs-2xs: 0.6875rem; /* 11 */
+  --fs-xs: 0.75rem;    /* 12 */
+  --fs-sm: 0.8125rem;  /* 13 */
+  --fs-base: 0.875rem; /* 14 */
+  --fs-md: 1rem;       /* 16 */
+  --fs-lg: 1.125rem;   /* 18 */
+  --fs-xl: 1.375rem;   /* 22 */
+  --fs-2xl: 1.75rem;   /* 28 */
+  --fs-3xl: 2.25rem;   /* 36 */
+  --fs-4xl: 3rem;      /* 48 */
+
+  --lh-tight: 1.15;
+  --lh-snug: 1.35;
+  --lh-normal: 1.55;
+
+  --track-wide: 0.08em;
+  --track-wider: 0.16em;
+
+  /* ---- Space (4pt scale) ---- */
+  --s-1: 4px;
+  --s-2: 8px;
+  --s-3: 12px;
+  --s-4: 16px;
+  --s-5: 20px;
+  --s-6: 24px;
+  --s-8: 32px;
+  --s-10: 40px;
+  --s-12: 48px;
+  --s-16: 64px;
+  --s-20: 80px;
+
+  /* ---- Radius ---- */
+  --r-xs: 2px;
+  --r-sm: 4px;
+  --r-md: 8px;
+  --r-lg: 14px;
+  --r-full: 999px;
+
+  /* ---- Elevation (used sparingly — minimal borders design) ---- */
+  --shadow-sm: 0 1px 2px rgba(20, 16, 15, 0.06);
+  --shadow-md: 0 4px 16px rgba(20, 16, 15, 0.08);
+  --shadow-lg: 0 12px 40px rgba(20, 16, 15, 0.12);
+
+  /* ---- Motion ---- */
+  --ease: cubic-bezier(0.4, 0, 0.2, 1);
+  --dur-fast: 120ms;
+  --dur: 200ms;
+  --dur-slow: 320ms;
+
+  /* ---- Layout ---- */
+  --page-max: 1440px;
+  --page-gutter: 40px;
+  --header-h: 116px;
+  --z-header: 100;
+  --z-drawer: 200;
+  --z-modal: 300;
+  --z-toast: 400;
+}
+
+@media (max-width: 1024px) {
+  :root {
+    --page-gutter: 24px;
+    --header-h: 104px;
+  }
+}
+
+@media (max-width: 640px) {
+  :root {
+    --page-gutter: 16px;
+    --header-h: 96px;
+    --fs-3xl: 1.75rem;
+    --fs-4xl: 2rem;
+  }
+}
