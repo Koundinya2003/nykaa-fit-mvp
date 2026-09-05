@@ -7,6 +7,7 @@ import { PRODUCTS, getByTag, ALL_BRANDS } from '@/data/products';
 import { EDITORIAL_BANNERS, FEATURED_CATEGORIES } from '@/data/homeContent';
 import { applySort } from '@/utils/catalogue';
 import { RulerIcon } from '@/components/Icons';
+import { DEMO_ITEM_COUNT, DEMO_BRAND_COUNT } from '@/features/nykaa-fit';
 import '@/styles/home.css';
 
 export default function HomePage() {
@@ -31,8 +32,8 @@ export default function HomePage() {
           <span className="demo-banner__copy">
             <span className="demo-banner__title">Evaluator walkthrough</span>
             <span className="demo-banner__body">
-              One click seeds a fit profile and ten saved items across nine brands, then resolves
-              the fit question on every one of them.
+              One click seeds a fit profile and {DEMO_ITEM_COUNT} saved items across{' '}
+              {DEMO_BRAND_COUNT} brands, then resolves the fit question on every one of them.
             </span>
           </span>
           <span className="demo-banner__cta">Start &rarr;</span>

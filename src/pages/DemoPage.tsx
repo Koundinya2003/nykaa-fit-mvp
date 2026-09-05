@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useShop } from '@/context/ShopContext';
-import { seedDemo, track, DEMO_WISHLIST_IDS } from '@/features/nykaa-fit';
+import { seedDemo, track, DEMO_ITEM_COUNT, DEMO_BRAND_COUNT } from '@/features/nykaa-fit';
 import { setTourVisible } from '@/utils/tourState';
 import { RulerIcon } from '@/components/Icons';
 import '@/styles/demo.css';
@@ -54,7 +54,7 @@ export default function DemoPage() {
         </h1>
         <p className="demo__body">
           {error ??
-            `Saving a measured fit profile and ${DEMO_WISHLIST_IDS.length} wishlisted items across nine brands, then resolving every one of them.`}
+            `Saving a measured fit profile and ${DEMO_ITEM_COUNT} wishlisted items across ${DEMO_BRAND_COUNT} brands, then resolving every one of them.`}
         </p>
       </div>
     </div>

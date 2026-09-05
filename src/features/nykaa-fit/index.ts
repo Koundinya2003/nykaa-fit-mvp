@@ -88,4 +88,10 @@ export type {
   FitRecommendation,
 } from './types/fitTypes';
 
-export { seedDemo, DEMO_PROFILE, DEMO_WISHLIST_IDS } from './utils/demoSeed';
+export {
+  seedDemo,
+  DEMO_PROFILE,
+  DEMO_WISHLIST_IDS,
+  DEMO_ITEM_COUNT,
+  DEMO_BRAND_COUNT,
+} from './utils/demoSeed';

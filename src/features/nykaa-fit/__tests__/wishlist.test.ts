@@ -6,6 +6,13 @@ import { resolveWishlist, resolveWishlistItem, savedAgoLabel, daysSince } from '
 import { isFitEligible } from '../utils/eligibility';
 import { __resetFitProfileCache, clearFitProfile, migrateProfile } from '../utils/fitStorage';
 import {
+  seedDemo,
+  DEMO_PROFILE,
+  DEMO_WISHLIST_IDS,
+  DEMO_ITEM_COUNT,
+  DEMO_BRAND_COUNT,
+} from '../utils/demoSeed';
+import {
   __resetResolutionCache,
   clearResolutions,
   isResolved,
@@ -301,5 +308,59 @@ describe('profile migration', () => {
     expect(migrateProfile({ gender: 'female' })).toBeNull();
     expect(migrateProfile({ heightCm: 165 })).toBeNull();
     expect(migrateProfile(null)).toBeNull();
+  });
+});
+
+describe('the demo seed', () => {
+  it('describes itself with counts derived from the seed list', () => {
+    expect(DEMO_ITEM_COUNT).toBe(DEMO_WISHLIST_IDS.length);
+    const brands = new Set(DEMO_WISHLIST_IDS.map((id) => getProductById(id)?.brand));
+    expect(DEMO_BRAND_COUNT).toBe(brands.size);
+  });
+
+  it('seeds only products that exist in the catalogue', () => {
+    DEMO_WISHLIST_IDS.forEach((id) => expect(getProductById(id), id).toBeDefined());
+  });
+
+  it('spans the whole 30-day window and populates all three groups', () => {
+    const { wishlist } = seedDemo(NOW);
+    expect(wishlist).toHaveLength(DEMO_ITEM_COUNT);
+
+    const ages = wishlist.map((e) => daysSince(e.addedAt, NOW));
+    expect(Math.max(...ages)).toBeGreaterThan(20);
+    expect(Math.min(...ages)).toBeLessThan(5);
+
+    const pairsForSeed = wishlist.map((entry) => ({
+      product: getProductById(entry.productId)!,
+      entry,
+    }));
+    const profile: FitProfile = { ...DEMO_PROFILE, createdAt: 0, updatedAt: 1 };
+    const resolution = resolveWishlist(pairsForSeed, profile, NOW);
+
+    // An evaluator landing here should see every state the page can express,
+    // otherwise the walkthrough only demonstrates the happy path.
+    expect(resolution.counts.ready).toBeGreaterThan(0);
+    expect(resolution.counts.decide).toBeGreaterThan(0);
+    expect(resolution.counts.blocked).toBeGreaterThan(0);
+  });
+
+  it('cannot reach "ready to buy" from the estimated path', () => {
+    const { wishlist } = seedDemo(NOW);
+    const pairsForSeed = wishlist.map((entry) => ({
+      product: getProductById(entry.productId)!,
+      entry,
+    }));
+    const estimated: FitProfile = {
+      method: 'estimated',
+      heightCm: 164,
+      weightKg: 60,
+      gender: 'female',
+      preferredFit: 'regular',
+      createdAt: 0,
+      updatedAt: 1,
+    };
+    // "Confirmed" is a claim an estimated body cannot support — this is the
+    // concrete payoff for giving real measurements.
+    expect(resolveWishlist(pairsForSeed, estimated, NOW).counts.ready).toBe(0);
   });
 });

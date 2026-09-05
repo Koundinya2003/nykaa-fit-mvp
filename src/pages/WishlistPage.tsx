@@ -15,6 +15,8 @@ import {
   markResolved,
   track,
   trackOnce,
+  DEMO_ITEM_COUNT,
+  DEMO_BRAND_COUNT,
   WISHLIST_WINDOW_DAYS,
   type ResolvedWishlistItem,
 } from '@/features/nykaa-fit';
@@ -166,7 +168,7 @@ export default function WishlistPage() {
         />
         <p className="wl-empty-demo">
           Short on time? <Link to="/demo">Run the evaluator walkthrough</Link> — it seeds a profile
-          and ten saved items across six brands.
+          and {DEMO_ITEM_COUNT} saved items across {DEMO_BRAND_COUNT} brands.
         </p>
       </div>
     );

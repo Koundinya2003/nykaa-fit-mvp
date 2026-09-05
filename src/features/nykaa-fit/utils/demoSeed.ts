@@ -1,4 +1,5 @@
 import type { WishlistEntry } from '@/types';
+import { getProductById } from '@/data/products';
 import type { FitProfile } from '../types/fitTypes';
 import { saveFitProfile } from './fitStorage';
 import { markResolved } from './fitResolutionStore';
@@ -61,6 +62,15 @@ const DEMO_ITEMS: { id: string; daysAgo: number }[] = [
 ];
 
 export const DEMO_WISHLIST_IDS = DEMO_ITEMS.map((i) => i.id);
+
+/** Derived rather than written into copy, because a hand-counted figure in
+ *  three different components is a figure that goes stale the first time the
+ *  seed list changes. */
+export const DEMO_ITEM_COUNT = DEMO_ITEMS.length;
+
+export const DEMO_BRAND_COUNT = new Set(
+  DEMO_WISHLIST_IDS.map((id) => getProductById(id)?.brand).filter(Boolean),
+).size;
 
 export interface DemoSeed {
   profile: FitProfile;
