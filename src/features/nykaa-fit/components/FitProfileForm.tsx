@@ -1,35 +1,48 @@
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type {
-  BodyShape,
   FieldErrors,
-  FitGender,
-  FitInputMethod,
   FitProfile,
   FitProfileDraft,
+  MeasurementKey,
+  PartialMeasurements,
   PreferredFit,
 } from '../types/fitTypes';
-import { ShieldIcon, RulerIcon } from '@/components/Icons';
+import { MEASUREMENT_HOWTO, MEASUREMENT_KEYS, MEASUREMENT_LABEL } from '../types/fitTypes';
+import { PREFERENCE_LABEL } from '../engine/scoring';
+import { ShieldIcon } from '@/components/Icons';
 import '../styles/nykaa-fit.css';
 
 /* =========================================================================
-   The four questions.
+   The fit profile form.
 
-   Bust, waist, hip and height are the PRIMARY path, and they are primary for
-   one reason: a measurement means the same thing in every brand and a size
-   label does not. 34″ is 34″ at Kazo and at W for Woman. "Medium" is not.
+   Three numbers and a preference, all of them the shopper's own. Two design
+   decisions carry most of the weight here:
 
-   Height and weight are kept as an explicit escape hatch for the shopper who
-   does not have a tape measure to hand — clearly labelled as an estimate,
-   and capped at medium confidence everywhere downstream. That cap is not
-   decoration: it is the honest consequence of guessing three girths from two
-   numbers.
+   1. EVERY MEASUREMENT IS OPTIONAL, and the form says what each one buys.
+      A shopper with a tape measure and thirty seconds gives one number; the
+      feature should do something useful with it and be honest about the
+      limits, rather than demanding all three or inventing the rest.
+
+   2. NOTHING IS ESTIMATED. There is no height/weight path, because deriving
+      a bust measurement from two unrelated numbers is guessing, and a guess
+      presented as her body is worse than no answer. If she does not know
+      her measurements, the honest output is the size chart and instructions
+      for taking them.
+
+   `onChange` fires on every valid edit so callers can show a live preview
+   of what these numbers do, which is what makes the profile feel like hers
+   rather than a form she submits into a black box.
    ========================================================================= */
 
 interface Props {
-  /** Prefills the form when the shopper is editing an existing profile. */
   existing: FitProfile | null;
   onSubmit: (profile: Omit<FitProfile, 'createdAt' | 'updatedAt'>) => void;
-  onCancel: () => void;
+  onCancel?: () => void;
+  /** Fires on every edit with the currently valid values, for live preview. */
+  onChange?: (draft: Omit<FitProfile, 'createdAt' | 'updatedAt'>) => void;
+  submitLabel?: string;
+  /** Hides the cancel button when the form is a page rather than a dialog. */
+  showCancel?: boolean;
 }
 
 const PREFERRED_FITS: { id: PreferredFit; label: string; hint: string }[] = [
@@ -38,133 +51,96 @@ const PREFERRED_FITS: { id: PreferredFit; label: string; hint: string }[] = [
   { id: 'relaxed', label: 'Relaxed', hint: 'Room to move' },
 ];
 
-const GENDERS: { id: FitGender; label: string }[] = [
-  { id: 'female', label: 'Female' },
-  { id: 'male', label: 'Male' },
-  { id: 'unspecified', label: 'Prefer not to say' },
-];
+const LIMITS = { girth: { min: 24, max: 70 }, height: { min: 120, max: 220 } };
 
-const BODY_SHAPES: { id: BodyShape; label: string }[] = [
-  { id: 'hourglass', label: 'Hourglass' },
-  { id: 'pear', label: 'Pear' },
-  { id: 'apple', label: 'Apple' },
-  { id: 'rectangle', label: 'Rectangle' },
-  { id: 'athletic', label: 'Athletic' },
-];
-
-const MEASUREMENT_FIELDS: {
-  key: 'bustIn' | 'waistIn' | 'hipIn';
-  label: string;
-  placeholder: string;
-  how: string;
-}[] = [
-  {
-    key: 'bustIn',
-    label: 'Bust',
-    placeholder: '34',
-    how: 'Around the fullest part, tape level under the arms',
-  },
-  {
-    key: 'waistIn',
-    label: 'Waist',
-    placeholder: '28',
-    how: 'Around the narrowest part, usually just above the navel',
-  },
-  {
-    key: 'hipIn',
-    label: 'Hip',
-    placeholder: '38',
-    how: 'Around the fullest part, roughly 20 cm below the waist',
-  },
-];
-
-const LIMITS = {
-  height: { min: 120, max: 220 },
-  weight: { min: 30, max: 200 },
-  age: { min: 13, max: 100 },
-  girth: { min: 24, max: 60 },
-};
-
-function toDraft(profile: FitProfile | null): FitProfileDraft {
+export function toDraft(profile: FitProfile | null): FitProfileDraft {
   return {
-    method: profile?.method ?? 'measured',
-    bustIn: profile?.measurements ? String(profile.measurements.bust) : '',
-    waistIn: profile?.measurements ? String(profile.measurements.waist) : '',
-    hipIn: profile?.measurements ? String(profile.measurements.hip) : '',
-    heightCm: profile ? String(profile.heightCm) : '',
-    weightKg: profile?.weightKg ? String(profile.weightKg) : '',
-    gender: profile?.gender ?? '',
-    preferredFit: profile?.preferredFit ?? '',
-    age: profile?.age ? String(profile.age) : '',
-    bodyShape: profile?.bodyShape ?? '',
+    bust: profile?.measurements.bust ? String(profile.measurements.bust) : '',
+    waist: profile?.measurements.waist ? String(profile.measurements.waist) : '',
+    hip: profile?.measurements.hip ? String(profile.measurements.hip) : '',
+    heightCm: profile?.heightCm ? String(profile.heightCm) : '',
+    preferredFit: profile?.preferredFit ?? 'regular',
   };
 }
 
-function numberField(
-  value: string,
-  label: string,
-  limits: { min: number; max: number },
-  unit: string,
-): string | undefined {
-  if (!value.trim()) return `${label} is required`;
-  const n = Number(value);
-  if (!Number.isFinite(n) || n < limits.min || n > limits.max)
-    return `Enter a ${label.toLowerCase()} between ${limits.min} and ${limits.max} ${unit}`;
-  return undefined;
-}
-
+/** Only complains about values that are present and wrong. A blank field is
+ *  a choice, not an error. */
 export function validate(draft: FitProfileDraft): FieldErrors {
   const errors: FieldErrors = {};
 
-  errors.heightCm = numberField(draft.heightCm, 'Height', LIMITS.height, 'cm');
-
-  if (draft.method === 'measured') {
-    errors.bustIn = numberField(draft.bustIn, 'Bust', LIMITS.girth, 'inches');
-    errors.waistIn = numberField(draft.waistIn, 'Waist', LIMITS.girth, 'inches');
-    errors.hipIn = numberField(draft.hipIn, 'Hip', LIMITS.girth, 'inches');
-  } else {
-    errors.weightKg = numberField(draft.weightKg, 'Weight', LIMITS.weight, 'kg');
-  }
-
-  if (!draft.gender) errors.gender = 'Select an option';
-  if (!draft.preferredFit) errors.preferredFit = 'Choose how you like clothes to fit';
-
-  if (draft.age.trim()) {
-    const age = Number(draft.age);
-    if (!Number.isFinite(age) || age < LIMITS.age.min || age > LIMITS.age.max)
-      errors.age = `Enter an age between ${LIMITS.age.min} and ${LIMITS.age.max}`;
-  }
-
-  // Strip the undefined keys so callers can just count them.
-  (Object.keys(errors) as (keyof FieldErrors)[]).forEach((k) => {
-    if (errors[k] === undefined) delete errors[k];
+  MEASUREMENT_KEYS.forEach((key) => {
+    const raw = draft[key].trim();
+    if (!raw) return;
+    const n = Number(raw);
+    if (!Number.isFinite(n) || n < LIMITS.girth.min || n > LIMITS.girth.max) {
+      errors[key] = `Enter a value between ${LIMITS.girth.min} and ${LIMITS.girth.max} inches`;
+    }
   });
+
+  const h = draft.heightCm.trim();
+  if (h) {
+    const n = Number(h);
+    if (!Number.isFinite(n) || n < LIMITS.height.min || n > LIMITS.height.max) {
+      errors.heightCm = `Enter a height between ${LIMITS.height.min} and ${LIMITS.height.max} cm`;
+    }
+  }
 
   return errors;
 }
 
-/** cm -> a familiar ft/in reading, shown as a live hint. */
-function feetInches(cm: number): string | null {
-  if (!Number.isFinite(cm) || cm < LIMITS.height.min || cm > LIMITS.height.max) return null;
-  const totalInches = cm / 2.54;
-  const feet = Math.floor(totalInches / 12);
-  const inches = Math.round(totalInches - feet * 12);
-  return inches === 12 ? `${feet + 1}′ 0″` : `${feet}′ ${inches}″`;
+export function draftToProfile(
+  draft: FitProfileDraft,
+): Omit<FitProfile, 'createdAt' | 'updatedAt'> {
+  const measurements: PartialMeasurements = {};
+  MEASUREMENT_KEYS.forEach((key) => {
+    const raw = draft[key].trim();
+    if (!raw) return;
+    const n = Number(raw);
+    if (Number.isFinite(n) && n >= LIMITS.girth.min && n <= LIMITS.girth.max) {
+      measurements[key] = n;
+    }
+  });
+
+  const height = Number(draft.heightCm.trim());
+  return {
+    measurements,
+    preferredFit: draft.preferredFit,
+    heightCm:
+      draft.heightCm.trim() &&
+      Number.isFinite(height) &&
+      height >= LIMITS.height.min &&
+      height <= LIMITS.height.max
+        ? height
+        : undefined,
+  };
 }
 
-export default function FitProfileForm({ existing, onSubmit, onCancel }: Props) {
+export default function FitProfileForm({
+  existing,
+  onSubmit,
+  onCancel,
+  onChange,
+  submitLabel,
+  showCancel = true,
+}: Props) {
   const [draft, setDraft] = useState<FitProfileDraft>(() => toDraft(existing));
   const [errors, setErrors] = useState<FieldErrors>({});
-  const [showOptional, setShowOptional] = useState(Boolean(existing?.age || existing?.bodyShape));
+
+  const given = useMemo(
+    () => MEASUREMENT_KEYS.filter((k) => draft[k].trim() !== '' && !errors[k]),
+    [draft, errors],
+  );
+
+  // Live preview: callers see the answer move as she types.
+  useEffect(() => {
+    if (!onChange) return;
+    if (Object.keys(validate(draft)).length > 0) return;
+    onChange(draftToProfile(draft));
+  }, [draft, onChange]);
 
   const set = <K extends keyof FitProfileDraft>(key: K, value: FitProfileDraft[K]) => {
     setDraft((d) => ({ ...d, [key]: value }));
     setErrors((e) => ({ ...e, [key]: undefined }));
-  };
-
-  const setMethod = (method: FitInputMethod) => {
-    setDraft((d) => ({ ...d, method }));
-    setErrors({});
   };
 
   const submit = (e: React.FormEvent) => {
@@ -174,183 +150,58 @@ export default function FitProfileForm({ existing, onSubmit, onCancel }: Props) 
       setErrors(found);
       return;
     }
-
-    const shared = {
-      heightCm: Number(draft.heightCm),
-      gender: draft.gender as FitGender,
-      preferredFit: draft.preferredFit as PreferredFit,
-      age: draft.age.trim() ? Number(draft.age) : undefined,
-    };
-
-    onSubmit(
-      draft.method === 'measured'
-        ? {
-            ...shared,
-            method: 'measured',
-            measurements: {
-              bust: Number(draft.bustIn),
-              waist: Number(draft.waistIn),
-              hip: Number(draft.hipIn),
-            },
-          }
-        : {
-            ...shared,
-            method: 'estimated',
-            weightKg: Number(draft.weightKg),
-            bodyShape: draft.bodyShape ? (draft.bodyShape as BodyShape) : undefined,
-          },
-    );
+    onSubmit(draftToProfile(draft));
   };
-
-  const heightHint = feetInches(Number(draft.heightCm));
-  const measured = draft.method === 'measured';
 
   return (
     <form className="fit-form" onSubmit={submit} noValidate>
-      <div className="fit-method" role="radiogroup" aria-label="How would you like to tell us your size?">
-        <button
-          type="button"
-          role="radio"
-          aria-checked={measured}
-          className={`fit-method__opt ${measured ? 'is-active' : ''}`}
-          onClick={() => setMethod('measured')}
-        >
-          <span className="fit-method__label">
-            <RulerIcon size={15} />I know my measurements
-          </span>
-          <span className="fit-method__hint">Bust, waist, hip · highest confidence</span>
-        </button>
-        <button
-          type="button"
-          role="radio"
-          aria-checked={!measured}
-          className={`fit-method__opt ${!measured ? 'is-active' : ''}`}
-          onClick={() => setMethod('estimated')}
-        >
-          <span className="fit-method__label">I don&rsquo;t know my measurements</span>
-          <span className="fit-method__hint">We estimate from height &amp; weight · lower confidence</span>
-        </button>
+      <div className="fit-form__intro">
+        <p className="fit-form__lede">
+          Your measurements, in inches. A measurement means the same thing at every brand — a size
+          label does not, which is exactly why you are an M at one label and an L at another.
+        </p>
+        <p className="fit-form__lede fit-form__lede--muted">
+          Give whichever you know. We use only what you enter and never estimate the rest.
+        </p>
       </div>
 
-      {measured ? (
-        <>
-          <p className="fit-method__why">
-            A measurement means the same thing in every brand. A size label does not — which is
-            exactly why the same shopper is an M at one label and an L at another.
-          </p>
-
-          <div className="fit-form__row fit-form__row--three">
-            {MEASUREMENT_FIELDS.map((field) => (
-              <label className="fit-field" key={field.key}>
-                <span className="fit-field__label">{field.label}</span>
-                <span className="fit-field__control">
-                  <input
-                    type="text"
-                    inputMode="decimal"
-                    autoComplete="off"
-                    placeholder={field.placeholder}
-                    value={draft[field.key]}
-                    aria-invalid={Boolean(errors[field.key])}
-                    aria-describedby={`how-${field.key}`}
-                    onChange={(e) => set(field.key, e.target.value.replace(/[^\d.]/g, ''))}
-                  />
-                  <span className="fit-field__unit">in</span>
-                </span>
-                {errors[field.key] ? (
-                  <span className="fit-field__error" role="alert">
-                    {errors[field.key]}
-                  </span>
-                ) : (
-                  <span className="fit-field__hint" id={`how-${field.key}`}>
-                    {field.how}
-                  </span>
-                )}
-              </label>
-            ))}
-          </div>
-        </>
-      ) : (
-        <p className="fit-method__why fit-method__why--warn">
-          We&rsquo;ll estimate your bust, waist and hip from your height and weight. It works, but
-          it is a proxy — two people at the same height and weight are not the same shape, so this
-          path never reads as high confidence.
-        </p>
-      )}
-
-      <div className="fit-form__row">
-        <label className="fit-field">
-          <span className="fit-field__label">Height</span>
-          <span className="fit-field__control">
-            <input
-              type="text"
-              inputMode="numeric"
-              autoComplete="off"
-              placeholder="165"
-              value={draft.heightCm}
-              aria-invalid={Boolean(errors.heightCm)}
-              aria-describedby={errors.heightCm ? 'err-height' : undefined}
-              onChange={(e) => set('heightCm', e.target.value.replace(/[^\d.]/g, ''))}
-            />
-            <span className="fit-field__unit">cm</span>
-          </span>
-          {errors.heightCm ? (
-            <span className="fit-field__error" id="err-height" role="alert">
-              {errors.heightCm}
+      <div className="fit-measure">
+        {MEASUREMENT_KEYS.map((key) => (
+          <label className="fit-field" key={key}>
+            <span className="fit-field__label">
+              {MEASUREMENT_LABEL[key]}
+              <span className="fit-field__opt">optional</span>
             </span>
-          ) : (
-            heightHint && <span className="fit-field__hint">{heightHint}</span>
-          )}
-        </label>
-
-        {!measured && (
-          <label className="fit-field">
-            <span className="fit-field__label">Weight</span>
             <span className="fit-field__control">
               <input
                 type="text"
-                inputMode="numeric"
+                inputMode="decimal"
                 autoComplete="off"
-                placeholder="60"
-                value={draft.weightKg}
-                aria-invalid={Boolean(errors.weightKg)}
-                aria-describedby={errors.weightKg ? 'err-weight' : undefined}
-                onChange={(e) => set('weightKg', e.target.value.replace(/[^\d.]/g, ''))}
+                placeholder="—"
+                value={draft[key]}
+                aria-invalid={Boolean(errors[key])}
+                aria-describedby={`how-${key}`}
+                onChange={(e) => set(key, e.target.value.replace(/[^\d.]/g, ''))}
               />
-              <span className="fit-field__unit">kg</span>
+              <span className="fit-field__unit">in</span>
             </span>
-            {errors.weightKg && (
-              <span className="fit-field__error" id="err-weight" role="alert">
-                {errors.weightKg}
+            {errors[key] ? (
+              <span className="fit-field__error" role="alert">
+                {errors[key]}
+              </span>
+            ) : (
+              <span className="fit-field__hint" id={`how-${key}`}>
+                {MEASUREMENT_HOWTO[key]}
               </span>
             )}
           </label>
-        )}
+        ))}
       </div>
 
-      <fieldset className="fit-fieldset">
-        <legend className="fit-field__label">Gender</legend>
-        <div className="fit-choices">
-          {GENDERS.map((g) => (
-            <button
-              key={g.id}
-              type="button"
-              className={`fit-choice ${draft.gender === g.id ? 'is-active' : ''}`}
-              aria-pressed={draft.gender === g.id}
-              onClick={() => set('gender', g.id)}
-            >
-              {g.label}
-            </button>
-          ))}
-        </div>
-        {errors.gender && (
-          <span className="fit-field__error" role="alert">
-            {errors.gender}
-          </span>
-        )}
-      </fieldset>
+      <MeasurementCoverage given={given} />
 
       <fieldset className="fit-fieldset">
-        <legend className="fit-field__label">Preferred fit</legend>
+        <legend className="fit-field__label">How do you like clothes to fit?</legend>
         <div className="fit-choices fit-choices--stacked">
           {PREFERRED_FITS.map((f) => (
             <button
@@ -365,90 +216,96 @@ export default function FitProfileForm({ existing, onSubmit, onCancel }: Props) 
             </button>
           ))}
         </div>
-        {errors.preferredFit && (
-          <span className="fit-field__error" role="alert">
-            {errors.preferredFit}
-          </span>
-        )}
+        <p className="fit-field__hint">
+          {PREFERENCE_LABEL[draft.preferredFit]} — this shifts how much room we look for, and you
+          can change it any time.
+        </p>
       </fieldset>
 
-      <div className="fit-optional">
-        <button
-          type="button"
-          className="fit-optional__toggle"
-          aria-expanded={showOptional}
-          onClick={() => setShowOptional((s) => !s)}
-        >
-          {showOptional ? 'Hide optional details' : 'Add optional details for a closer match'}
-        </button>
-
-        {showOptional && (
-          <div className="fit-optional__body">
-            <div className="fit-form__row">
-              <label className="fit-field">
-                <span className="fit-field__label">
-                  Age <span className="fit-field__opt">optional</span>
-                </span>
-                <span className="fit-field__control">
-                  <input
-                    type="text"
-                    inputMode="numeric"
-                    autoComplete="off"
-                    placeholder="28"
-                    value={draft.age}
-                    aria-invalid={Boolean(errors.age)}
-                    onChange={(e) => set('age', e.target.value.replace(/[^\d]/g, ''))}
-                  />
-                </span>
-                {errors.age && (
-                  <span className="fit-field__error" role="alert">
-                    {errors.age}
-                  </span>
-                )}
-              </label>
-            </div>
-
-            {!measured && (
-              <fieldset className="fit-fieldset">
-                <legend className="fit-field__label">
-                  Body shape <span className="fit-field__opt">optional</span>
-                </legend>
-                <p className="fit-field__hint">
-                  Only used on the estimated path — it redistributes the waist and hip guess.
-                </p>
-                <div className="fit-choices">
-                  {BODY_SHAPES.map((s) => (
-                    <button
-                      key={s.id}
-                      type="button"
-                      className={`fit-choice ${draft.bodyShape === s.id ? 'is-active' : ''}`}
-                      aria-pressed={draft.bodyShape === s.id}
-                      onClick={() => set('bodyShape', draft.bodyShape === s.id ? '' : s.id)}
-                    >
-                      {s.label}
-                    </button>
-                  ))}
-                </div>
-              </fieldset>
+      <details className="fit-optional-extra">
+        <summary>Add your height (optional)</summary>
+        <div className="fit-optional__body">
+          <label className="fit-field">
+            <span className="fit-field__label">Height</span>
+            <span className="fit-field__control">
+              <input
+                type="text"
+                inputMode="numeric"
+                autoComplete="off"
+                placeholder="—"
+                value={draft.heightCm}
+                aria-invalid={Boolean(errors.heightCm)}
+                onChange={(e) => set('heightCm', e.target.value.replace(/[^\d.]/g, ''))}
+              />
+              <span className="fit-field__unit">cm</span>
+            </span>
+            {errors.heightCm ? (
+              <span className="fit-field__error" role="alert">
+                {errors.heightCm}
+              </span>
+            ) : (
+              <span className="fit-field__hint">
+                Kept for context on length. It is never used to estimate a measurement you did not
+                give.
+              </span>
             )}
-          </div>
-        )}
-      </div>
+          </label>
+        </div>
+      </details>
 
       <p className="fit-privacy">
         <ShieldIcon size={16} />
-        Your fit profile is saved on this device only. There is no network call anywhere in this
+        Your profile is saved on this device only. There is no network call anywhere in this
         feature — nothing is uploaded, and no photographs are used.
       </p>
 
       <div className="fit-form__actions">
-        <button type="button" className="btn btn--ghost" onClick={onCancel}>
-          Cancel
-        </button>
+        {showCancel && onCancel && (
+          <button type="button" className="btn btn--ghost" onClick={onCancel}>
+            Cancel
+          </button>
+        )}
         <button type="submit" className="btn btn--accent">
-          {existing ? 'Update my fit' : 'Get my size'}
+          {submitLabel ?? (existing ? 'Save changes' : 'Save my fit profile')}
         </button>
       </div>
     </form>
+  );
+}
+
+/**
+ * Says plainly what the shopper's current answers can and cannot buy her.
+ *
+ * This is the honest replacement for an estimator: rather than filling the
+ * gaps in silently, the form tells her the gaps exist and what closing them
+ * would do.
+ */
+function MeasurementCoverage({ given }: { given: MeasurementKey[] }) {
+  const missing = MEASUREMENT_KEYS.filter((k) => !given.includes(k));
+
+  if (given.length === 0) {
+    return (
+      <p className="fit-coverage fit-coverage--none">
+        With none of these we can&rsquo;t size anything — we&rsquo;ll show you the brand&rsquo;s
+        size chart instead of guessing. Even one measurement gives you something.
+      </p>
+    );
+  }
+
+  if (given.length === MEASUREMENT_KEYS.length) {
+    return (
+      <p className="fit-coverage fit-coverage--full">
+        All three — we can compare your whole body against every brand&rsquo;s chart.
+      </p>
+    );
+  }
+
+  return (
+    <p className="fit-coverage">
+      We&rsquo;ll size you on your{' '}
+      {given.map((k) => MEASUREMENT_LABEL[k].toLowerCase()).join(' and ')} alone. Adding your{' '}
+      {missing.map((k) => MEASUREMENT_LABEL[k].toLowerCase()).join(' and ')} would let us catch a
+      mismatch elsewhere — until then, expect fewer confident answers.
+    </p>
   );
 }

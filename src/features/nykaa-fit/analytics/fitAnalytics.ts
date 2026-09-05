@@ -33,6 +33,10 @@ export type FitEventName =
   /** The single wishlist-level action, fired once per pass. */
   | 'wishlist_resolve_all'
   | 'wishlist_add_to_bag'
+  | 'wishlist_quick_start'
+  /** Changed preferred fit from the inline control on a recommendation. */
+  | 'fit_preference_changed'
+  | 'fit_profile_cleared'
   /* ---- post-purchase ---- */
   /** Kept or returned, with a reason. The only event that tells us whether
    *  the recommendation was actually right. */
@@ -63,8 +67,6 @@ export interface FitEventProps {
   quantity?: number;
   order_id?: string;
   reason?: string;
-  /** 'measured' or 'estimated' — which input path produced the profile. */
-  input_method?: string;
   /** 'high' | 'medium' | 'low'. */
   confidence_level?: string;
   /** True when the confidence model declined to name a size. */
@@ -79,6 +81,8 @@ export interface FitEventProps {
   outcome?: string;
   /** Whether the recommended size was in stock at the time. */
   in_stock?: boolean;
+  /** How many of the three measurements the shopper has given. */
+  measurements_given?: number;
 }
 
 export interface AnalyticsEvent {

@@ -7,7 +7,6 @@ import { PRODUCTS, getByTag, ALL_BRANDS } from '@/data/products';
 import { EDITORIAL_BANNERS, FEATURED_CATEGORIES } from '@/data/homeContent';
 import { applySort } from '@/utils/catalogue';
 import { RulerIcon } from '@/components/Icons';
-import { DEMO_ITEM_COUNT, DEMO_BRAND_COUNT } from '@/features/nykaa-fit';
 import '@/styles/home.css';
 
 export default function HomePage() {
@@ -20,23 +19,23 @@ export default function HomePage() {
     <>
       <Hero />
 
-      {/* ---- Evaluator entry point ----
-          A grader has ten minutes. This is the shortest path from the
-          homepage to the argument: a seeded profile, a month-old wishlist,
-          and every saved item resolved. */}
+      {/* ---- Nykaa Fit entry point ----
+          Straight to the profile, because that is the thing worth setting
+          up once. It asks for her measurements; it does not invent them. */}
       <section className="page section--tight">
-        <Link to="/demo" className="demo-banner">
-          <span className="demo-banner__icon">
+        <Link to="/fit-profile" className="fit-banner">
+          <span className="fit-banner__icon">
             <RulerIcon size={20} />
           </span>
-          <span className="demo-banner__copy">
-            <span className="demo-banner__title">Evaluator walkthrough</span>
-            <span className="demo-banner__body">
-              One click seeds a fit profile and {DEMO_ITEM_COUNT} saved items across{' '}
-              {DEMO_BRAND_COUNT} brands, then resolves the fit question on every one of them.
+          <span className="fit-banner__copy">
+            <span className="fit-banner__title">Set up your fit profile</span>
+            <span className="fit-banner__body">
+              Enter your bust, waist and hip once. We size every saved item against the brand that
+              made it, using that brand&rsquo;s own published chart — and tell you when we
+              can&rsquo;t.
             </span>
           </span>
-          <span className="demo-banner__cta">Start &rarr;</span>
+          <span className="fit-banner__cta">Start &rarr;</span>
         </Link>
       </section>
 

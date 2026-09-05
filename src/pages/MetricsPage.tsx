@@ -1,7 +1,6 @@
 import { useMemo, useState, useSyncExternalStore } from 'react';
 import { Link } from 'react-router-dom';
 import {
-  BrandFitHistoryPanel,
   clearEvents,
   clearOutcomes,
   clearResolutions,
@@ -63,8 +62,8 @@ export default function MetricsPage() {
           </p>
         </div>
         <div className="metrics__actions">
-          <Link to="/demo" className="btn btn--accent btn--sm">
-            Seed the walkthrough
+          <Link to="/fit-profile" className="btn btn--accent btn--sm">
+            Set up a fit profile
           </Link>
           <button type="button" className="btn btn--ghost btn--sm" onClick={resetAll}>
             Reset all local data
@@ -133,16 +132,38 @@ export default function MetricsPage() {
         </ol>
       </section>
 
-      {/* ---- Brand fit history ---- */}
+      {/* ---- What feeds a recommendation ---- */}
       <section className="metrics__section">
-        <h2 className="metrics__section-title">Per-brand fit history</h2>
+        <h2 className="metrics__section-title">What feeds a recommendation</h2>
         <p className="metrics__lede">
-          What drives the cross-brand comparison, and what the reported outcomes have changed.{' '}
-          {outcomes.length === 0
-            ? 'No outcomes reported on this device yet — place an order and answer "did it fit?" to see these move.'
-            : `${outcomes.length} outcome${outcomes.length === 1 ? '' : 's'} reported on this device.`}
+          Two inputs, and they are the only two: the measurements the shopper entered, and the
+          brand&rsquo;s published size chart. There is no crowd model here and no estimate of
+          anyone&rsquo;s body — an earlier build derived a per-brand &ldquo;fit history&rdquo;
+          from generated reviews, and it has been removed rather than relabelled.
         </p>
-        <BrandFitHistoryPanel />
+        <ul className="metrics__inputs">
+          <li>
+            <strong>Her measurements</strong>
+            <span>Self-entered, on this device. Blanks stay blank.</span>
+          </li>
+          <li>
+            <strong>Her preferred fit</strong>
+            <span>Slim, regular or relaxed — changeable per visit.</span>
+          </li>
+          <li>
+            <strong>The brand&rsquo;s published chart</strong>
+            <span>The body each size is cut for, from the catalogue.</span>
+          </li>
+          <li>
+            <strong>The garment&rsquo;s cut</strong>
+            <span>How much room the style is drafted with.</span>
+          </li>
+        </ul>
+        <p className="metrics__note">
+          Outcomes she reports after an order ({outcomes.length} on this device) are shown to her
+          as advice on that brand&rsquo;s products. They never move the recommended size: one or
+          two returns is a real signal to a person and a terrible statistic.
+        </p>
       </section>
 
       {/* ---- Raw log ---- */}

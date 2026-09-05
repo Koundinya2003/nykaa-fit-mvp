@@ -89,8 +89,8 @@ export default function Footer() {
             <li>Illustrated product imagery, generated locally</li>
             <li>Bag, wishlist &amp; fit profile in localStorage</li>
             <li>
-              <Link to="/demo" className="footer__link footer__link--inline">
-                Evaluator walkthrough
+              <Link to="/fit-profile" className="footer__link footer__link--inline">
+                My fit profile
               </Link>
             </li>
             <li>

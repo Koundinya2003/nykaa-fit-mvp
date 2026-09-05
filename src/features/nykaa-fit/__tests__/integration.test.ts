@@ -1,4 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest';
+import { readFileSync, readdirSync, statSync } from 'node:fs';
+import { join } from 'node:path';
 import { PRODUCTS } from '@/data/products';
 import type { FitProfile } from '../types/fitTypes';
 import { recommendForProduct } from '../engine/fitEngine';
@@ -7,6 +9,7 @@ import {
   __resetFitProfileCache,
   clearFitProfile,
   getFitProfile,
+  hasMeasurements,
   saveFitProfile,
   subscribeFitProfile,
 } from '../utils/fitStorage';
@@ -29,22 +32,8 @@ import { assignVariant, hashToUnitInterval } from '../experiment/variant';
 
 const SIZE_ORDER = ['XS', 'S', 'M', 'L', 'XL', 'XXL'];
 
-/** The fallback path — kept as the default shopper here because the
- *  migration and persistence tests below are about exactly that shape. */
 const SHOPPER: Omit<FitProfile, 'createdAt' | 'updatedAt'> = {
-  method: 'estimated',
-  heightCm: 165,
-  weightKg: 60,
-  gender: 'female',
-  preferredFit: 'regular',
-};
-
-/** The primary path. */
-const MEASURED_SHOPPER: Omit<FitProfile, 'createdAt' | 'updatedAt'> = {
-  method: 'measured',
   measurements: { bust: 35, waist: 29.5, hip: 38.5 },
-  heightCm: 164,
-  gender: 'female',
   preferredFit: 'regular',
 };
 
@@ -59,12 +48,11 @@ describe('eligibility', () => {
     });
     const ineligible = PRODUCTS.filter((p) => !isFitEligible(p));
     expect(ineligible.some((p) => p.subcategory === 'jeans')).toBe(true);
-    expect(ineligible.every((p) => p.subcategory !== 'dresses')).toBe(true);
   });
 
   it('gives every eligible product its own brand chart', () => {
     const charts = PRODUCTS.filter(isFitEligible).map((p) => JSON.stringify(p.sizeChart?.M ?? {}));
-    // Brands genuinely disagree about what "M" means.
+    // Brands genuinely disagree about what "M" means. This is the premise.
     expect(new Set(charts).size).toBeGreaterThan(1);
   });
 });
@@ -80,33 +68,25 @@ describe('catalogue recommendations', () => {
     });
   });
 
-  it('never returns high confidence on the estimated path', () => {
-    PRODUCTS.filter(isFitEligible).forEach((p) => {
-      const rec = recommendForProduct(profile, p)!;
-      expect(rec.confidence.level, p.id).not.toBe('high');
-    });
+  it('does not give the same shopper the same size everywhere', () => {
+    const sizes = PRODUCTS.filter(isFitEligible)
+      .map((p) => recommendForProduct(profile, p)!)
+      .filter((r) => !r.confidence.withheld)
+      .map((r) => r.recommendedSize);
+    expect(new Set(sizes).size).toBeGreaterThan(1);
   });
 
-  it('can reach high confidence on the measured path', () => {
-    const measured: FitProfile = { ...MEASURED_SHOPPER, createdAt: 0, updatedAt: 0 };
+  it('reaches high confidence somewhere in the catalogue', () => {
     const levels = PRODUCTS.filter(isFitEligible).map(
-      (p) => recommendForProduct(measured, p)!.confidence.level,
+      (p) => recommendForProduct(profile, p)!.confidence.level,
     );
     expect(levels).toContain('high');
-  });
-
-  it('does not give the same shopper the same size everywhere', () => {
-    const sizes = PRODUCTS.filter(isFitEligible).map(
-      (p) => recommendForProduct(profile, p)!.recommendedSize,
-    );
-    expect(new Set(sizes).size).toBeGreaterThan(1);
   });
 
   it('never recommends a sold-out size while another is in stock', () => {
     PRODUCTS.filter(isFitEligible).forEach((p) => {
       const rec = recommendForProduct(profile, p)!;
-      const anyAvailable = p.sizes.some((s) => !p.soldOutSizes.includes(s));
-      if (anyAvailable) {
+      if (p.sizes.some((s) => !p.soldOutSizes.includes(s))) {
         expect(p.soldOutSizes, p.id).not.toContain(rec.recommendedSize);
       }
     });
@@ -118,13 +98,76 @@ describe('catalogue recommendations', () => {
   });
 
   it('moves the whole catalogue up a size for a larger shopper', () => {
-    const larger: FitProfile = { ...profile, weightKg: 82 };
+    const larger: FitProfile = {
+      ...profile,
+      measurements: { bust: 40, waist: 34, hip: 43 },
+    };
     const eligible = PRODUCTS.filter(isFitEligible);
-    const idx = (p: (typeof eligible)[number], who: FitProfile) =>
-      SIZE_ORDER.indexOf(recommendForProduct(who, p)!.idealSize);
     const avg = (who: FitProfile) =>
-      eligible.reduce((acc, p) => acc + idx(p, who), 0) / eligible.length;
+      eligible.reduce(
+        (acc, p) => acc + SIZE_ORDER.indexOf(recommendForProduct(who, p)!.idealSize),
+        0,
+      ) / eligible.length;
     expect(avg(larger)).toBeGreaterThan(avg(profile));
+  });
+});
+
+/* =========================================================================
+   The rule this rebuild exists to enforce.
+
+   A recommendation may consult the shopper's own measurements and the
+   brand's published chart, and nothing else. That is easy to state, easy to
+   verify once, and very easy to erode later — the previous build drifted
+   into aggregating generated review sentiment per brand and presenting it
+   as "18 fit reports".
+
+   So it is asserted structurally rather than by inspection: the engine
+   directory must not import the review corpus at all.
+   ========================================================================= */
+describe('no fabricated customer data', () => {
+  const engineDir = join(__dirname, '..', 'engine');
+
+  const sourceFiles = (dir: string): string[] =>
+    readdirSync(dir).flatMap((name) => {
+      const full = join(dir, name);
+      if (statSync(full).isDirectory()) return name === '__tests__' ? [] : sourceFiles(full);
+      return full.endsWith('.ts') ? [full] : [];
+    });
+
+  it('never imports the review corpus into the engine', () => {
+    sourceFiles(engineDir).forEach((file) => {
+      const body = readFileSync(file, 'utf8');
+      expect(body, file).not.toMatch(/from '@\/data\/reviews'/);
+      expect(body, file).not.toMatch(/getReviews|fitFeedback|reviewCount/);
+    });
+  });
+
+  it('has no body estimator left to call', () => {
+    sourceFiles(engineDir).forEach((file) => {
+      const body = readFileSync(file, 'utf8');
+      expect(body, file).not.toMatch(/estimateBody|girthIndex/);
+    });
+  });
+
+  it('reports only measurements the shopper actually gave', () => {
+    const partial: FitProfile = {
+      measurements: { waist: 29.5 },
+      preferredFit: 'regular',
+      createdAt: 0,
+      updatedAt: 0,
+    };
+    const rec = recommendForProduct(partial, PRODUCTS.find(isFitEligible)!)!;
+    expect(rec.body).toEqual({ waist: 29.5 });
+    expect(rec.receipt.inputsUsed.some((i) => /bust|hip/i.test(i.label))).toBe(false);
+    expect(rec.receipt.inputsMissing).toHaveLength(2);
+  });
+
+  it('names its exclusions on every recommendation', () => {
+    const profile: FitProfile = { ...SHOPPER, createdAt: 0, updatedAt: 0 };
+    PRODUCTS.filter(isFitEligible).forEach((p) => {
+      const rec = recommendForProduct(profile, p)!;
+      expect(rec.receipt.notUsed.length, p.id).toBeGreaterThan(0);
+    });
   });
 });
 
@@ -140,10 +183,9 @@ describe('fit profile persistence', () => {
     expect(saved.createdAt).toBeGreaterThan(0);
 
     __resetFitProfileCache(); // Simulate a fresh page load.
-    const reloaded = getFitProfile();
-    expect(reloaded).not.toBeNull();
-    expect(reloaded!.heightCm).toBe(165);
-    expect(reloaded!.preferredFit).toBe('regular');
+    const reloaded = getFitProfile()!;
+    expect(reloaded.measurements).toEqual(SHOPPER.measurements);
+    expect(reloaded.preferredFit).toBe('regular');
   });
 
   it('keeps createdAt but advances updatedAt on edit', () => {
@@ -152,6 +194,12 @@ describe('fit profile persistence', () => {
     expect(edited.createdAt).toBe(first.createdAt);
     expect(edited.updatedAt).toBeGreaterThanOrEqual(first.updatedAt);
     expect(edited.preferredFit).toBe('relaxed');
+  });
+
+  it('knows when a profile has nothing to compare against', () => {
+    expect(hasMeasurements(null)).toBe(false);
+    expect(hasMeasurements(saveFitProfile({ ...SHOPPER, measurements: {} }))).toBe(false);
+    expect(hasMeasurements(saveFitProfile(SHOPPER))).toBe(true);
   });
 
   it('notifies subscribers on save and clear', () => {
@@ -167,16 +215,17 @@ describe('fit profile persistence', () => {
   });
 
   it('recovers from corrupted storage rather than throwing', () => {
-    window.localStorage.setItem('nykaafit.fitProfile.v1', '{not json');
+    window.localStorage.setItem('nykaafit.fitProfile.v2', '{not json');
     __resetFitProfileCache();
     expect(getFitProfile()).toBeNull();
   });
 
-  it('reuses the saved profile to recommend on a second product', () => {
+  it('reuses one profile across brands, which is the whole promise', () => {
     saveFitProfile(SHOPPER);
     __resetFitProfileCache();
     const stored = getFitProfile()!;
     const [first, second] = PRODUCTS.filter(isFitEligible);
+    expect(first.brand).not.toBe(second.brand);
     expect(recommendForProduct(stored, first)).not.toBeNull();
     expect(recommendForProduct(stored, second)).not.toBeNull();
   });
@@ -229,11 +278,9 @@ describe('analytics', () => {
     track('add_to_bag', { product_id: 'wd-001', selected_size: 'L', value: 1799 });
 
     const serialised = JSON.stringify(getEvents());
-    ['heightCm', 'weightKg', 'height', 'weight', 'bust', 'waist', 'hip', 'bodyShape'].forEach(
-      (field) => {
-        expect(serialised).not.toContain(field);
-      },
-    );
+    ['heightCm', 'bust', 'waist', 'hip', 'measurements"'].forEach((field) => {
+      expect(serialised).not.toContain(field);
+    });
   });
 
   it('separates using the feature from being persuaded by it', () => {

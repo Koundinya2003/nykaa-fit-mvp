@@ -507,3 +507,16 @@
   text-decoration: underline;
   text-underline-offset: 3px;
 }
+
+/* A quiet dot on the header's fit action when a profile exists, so the
+   shopper can see at a glance that her measurements are saved. */
+.header__dot {
+  position: absolute;
+  top: -1px;
+  right: -1px;
+  width: 7px;
+  height: 7px;
+  border-radius: var(--r-full);
+  background: var(--c-success);
+  border: 1.5px solid var(--bg-page);
+}

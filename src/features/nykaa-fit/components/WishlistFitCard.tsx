@@ -28,6 +28,10 @@ interface Props {
  */
 export default function WishlistFitCard({ item, resolved, onAddToBag }: Props) {
   const { product, size, inStock, recommendation, daysSaved, daysLeftInWindow } = item;
+  // These two states are fixed by going to the profile, not by opening the
+  // product — sending her to the PDP would be a dead end.
+  const needsProfile =
+    item.reason.kind === 'no-profile' || item.reason.kind === 'no-measurements';
   const urgent = daysLeftInWindow <= 7 && daysLeftInWindow >= 0;
   const lapsed = daysLeftInWindow < 0;
 
@@ -72,7 +76,11 @@ export default function WishlistFitCard({ item, resolved, onAddToBag }: Props) {
               </span>
               <div className="wl-card__fitcopy">
                 <p className="wl-card__fitlabel">
-                  {resolved ? 'No size recommendation' : 'Not resolved yet'}
+                  {needsProfile
+                    ? 'Waiting on your measurements'
+                    : resolved
+                      ? 'No size recommendation'
+                      : 'Not resolved yet'}
                 </p>
                 {resolved && recommendation && (
                   <ConfidenceChip confidence={recommendation.confidence} />
@@ -83,7 +91,9 @@ export default function WishlistFitCard({ item, resolved, onAddToBag }: Props) {
         </div>
 
         <p className={`wl-card__stock ${inStock && size ? 'is-in' : 'is-out'}`}>
-          {resolved ? reasonLabel(item.reason) : 'Run a fit pass to see your size and stock'}
+          {resolved || needsProfile
+            ? reasonLabel(item.reason)
+            : 'Run a fit pass to see your size and stock'}
         </p>
 
         <div className="wl-card__foot">
@@ -104,6 +114,10 @@ export default function WishlistFitCard({ item, resolved, onAddToBag }: Props) {
             >
               Add {size} to bag
             </button>
+          ) : needsProfile ? (
+            <Link to="/fit-profile" className="btn btn--accent btn--sm wl-card__cta">
+              Add measurements
+            </Link>
           ) : (
             <Link to={`/p/${product.id}`} className="btn btn--ghost btn--sm wl-card__cta">
               {resolved && !size ? 'Open size chart' : 'View product'}

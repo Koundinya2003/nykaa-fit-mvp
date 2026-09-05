@@ -28,9 +28,15 @@ interface Step {
 
 const STEPS: Step[] = [
   {
-    label: 'Set a fit profile',
-    detail: 'Four questions — bust, waist, hip, height',
-    to: '/demo',
+    label: 'Save a few things',
+    detail: 'The wishlist is where the fit question lives',
+    to: '/wishlist',
+    events: ['wishlist_item_saved'],
+  },
+  {
+    label: 'Enter your measurements',
+    detail: 'Bust, waist, hip — yours, not ours',
+    to: '/fit-profile',
     events: ['fit_profile_completed'],
   },
   {
@@ -40,16 +46,10 @@ const STEPS: Step[] = [
     events: ['wishlist_item_resolved'],
   },
   {
-    label: 'Open a product',
-    detail: 'See the size, the confidence and why',
+    label: 'Open a product and change your fit',
+    detail: 'Watch the size move, and see what we used',
     to: '/p/wd-002',
-    events: ['fit_recommendation_shown'],
-  },
-  {
-    label: 'See your size change',
-    detail: 'Same body, different brand, different letter',
-    to: '/p/wd-009',
-    events: ['fit_recommendation_accepted', 'size_selected'],
+    events: ['fit_preference_changed', 'fit_recommendation_accepted'],
   },
 ];
 

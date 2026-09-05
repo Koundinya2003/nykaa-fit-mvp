@@ -2,214 +2,212 @@ import type { BodyMeasurements, FitClass } from '@/types';
 
 /* =========================================================================
    Nykaa Fit domain types.
+
+   One rule governs this whole feature: a recommendation may be built from
+   the shopper's own stated measurements and the brand's published size
+   chart, and from nothing else. No estimated bodies, no inferred girths,
+   no aggregated opinions of other shoppers. When those two inputs are not
+   enough to answer, the feature says so and shows the size chart.
+
+   Everything below exists to make that rule enforceable and inspectable.
    ========================================================================= */
 
-/**
- * How the body numbers behind a profile were obtained.
- *
- *  measured  — the shopper gave us bust, waist, hip and height. A measurement
- *              means the same thing in every brand; a size label does not.
- *              This is the primary path.
- *  estimated — the shopper did not have a tape measure, so we derived the
- *              three girths from height, weight and (optionally) body shape.
- *              Usable, but a proxy, and labelled as one everywhere.
- */
-export type FitInputMethod = 'measured' | 'estimated';
+/** The three girths a size chart is written in. Every one is optional,
+ *  because a shopper who only measured her waist should still get whatever
+ *  that one number can honestly buy her. */
+export type MeasurementKey = keyof BodyMeasurements;
 
-export type FitGender = 'female' | 'male' | 'unspecified';
+export const MEASUREMENT_KEYS: MeasurementKey[] = ['bust', 'waist', 'hip'];
+
+export const MEASUREMENT_LABEL: Record<MeasurementKey, string> = {
+  bust: 'Bust',
+  waist: 'Waist',
+  hip: 'Hip',
+};
+
+/** How to take each one. Shown next to the field, because "measure your
+ *  waist" is not instructions. */
+export const MEASUREMENT_HOWTO: Record<MeasurementKey, string> = {
+  bust: 'Around the fullest part, tape level under the arms',
+  waist: 'Around the narrowest part, usually just above the navel',
+  hip: 'Around the fullest part, roughly 20 cm below the waist',
+};
+
+/** A partial body: only what the shopper actually told us, in inches. */
+export type PartialMeasurements = Partial<Record<MeasurementKey, number>>;
 
 export type PreferredFit = 'slim' | 'regular' | 'relaxed';
 
-export type BodyShape = 'hourglass' | 'pear' | 'apple' | 'rectangle' | 'athletic';
-
 /**
- * The saved fit profile.
+ * The shopper's fit profile.
  *
- * `method` decides which of the two branches is populated. Both branches
- * carry height, because height anchors garment length and proportion on
- * either path; only the estimated branch needs weight and body shape, and
- * only the measured branch carries real girths.
+ * Deliberately small and entirely self-reported. There is no gender field
+ * and no body-shape field: neither changes how a tape measure reads, and
+ * both were only ever there to feed an estimator this feature no longer has.
  */
 export interface FitProfile {
-  method: FitInputMethod;
-  heightCm: number;
-  /** Present when method === 'measured'. Inches. */
-  measurements?: BodyMeasurements;
-  /** Present when method === 'estimated'. */
-  weightKg?: number;
-  /** Optional on the estimated path — redistributes the waist/hip estimate. */
-  bodyShape?: BodyShape;
-  gender: FitGender;
+  /** Only the measurements the shopper chose to give. */
+  measurements: PartialMeasurements;
+  /** How they like clothes to sit. The one preference that changes the answer. */
   preferredFit: PreferredFit;
-  /** Optional — nudges the waist estimate slightly. */
-  age?: number;
+  /** Optional context, never used to infer a measurement. */
+  heightCm?: number;
   createdAt: number;
   updatedAt: number;
 }
 
 /** Draft state while the form is open; every field may be empty. */
 export interface FitProfileDraft {
-  method: FitInputMethod;
-  bustIn: string;
-  waistIn: string;
-  hipIn: string;
+  bust: string;
+  waist: string;
+  hip: string;
   heightCm: string;
-  weightKg: string;
-  gender: FitGender | '';
-  preferredFit: PreferredFit | '';
-  age: string;
-  bodyShape: BodyShape | '';
+  preferredFit: PreferredFit;
 }
 
 export type FieldErrors = Partial<Record<keyof FitProfileDraft, string>>;
 
+/* ---------- Per-size assessment ---------- */
+
 /** How a single measurement of a single size lands on this body. */
 export type MeasurementVerdict = 'Tight' | 'Snug' | 'Comfortable' | 'Relaxed' | 'Loose';
 
-/** Overall character of a size on this body — the "Fit" row of the
- *  comparison table. */
+/** Overall character of a size on this body. */
 export type SizeCharacter = 'Too tight' | 'Snug' | 'Regular' | 'Relaxed' | 'Loose';
 
-/**
- * What the shopper is told about the strength of the match.
- *
- * Deliberately qualitative. We have no empirical validation data, so a
- * percentage would imply a probability of being right that this heuristic
- * cannot support. `Closest available size` is the honest label when nothing
- * in the size run is a good match, or when the best size is out of stock.
- */
-export type MatchQuality = 'Strong match' | 'Good match' | 'Closest available size';
-
-/** An optional nudge when the shopper sits near a size boundary. */
-export type SizingHint = 'Consider sizing up' | 'Consider sizing down';
+/** One row of the comparison: what this size's chart says, what the shopper
+ *  measured, and the gap between them. */
+export interface MeasurementComparison {
+  key: MeasurementKey;
+  /** What the shopper told us, in inches. Null when they skipped it. */
+  yours: number | null;
+  /** What this brand's chart says this size is cut for. */
+  chart: number;
+  /** The room this size leaves you, after the ease you asked for.
+   *  Null when the shopper skipped this measurement. */
+  ease: number | null;
+  verdict: MeasurementVerdict | null;
+}
 
 export interface SizeAssessment {
   size: string;
   available: boolean;
-  /** Weighted distance in inches between the body and the size. Lower is better. */
+  /** Weighted distance in inches, over the measurements the shopper gave.
+   *  Lower is better. */
   distance: number;
-  /** 0–100, derived from distance. Presentation only; ranking uses distance. */
-  score: number;
   character: SizeCharacter;
-  verdicts: Record<keyof BodyMeasurements, MeasurementVerdict>;
-  /** Signed inches of room the garment leaves at each measurement. */
-  ease: Record<keyof BodyMeasurements, number>;
-}
-
-export interface FitFactorRow {
-  label: string;
-  value: string;
-}
-
-/** A factor that actually moved the recommendation, phrased as a direction
- *  rather than a number — the shopper should follow it without knowing the
- *  algorithm. */
-export interface FitAdjustment extends FitFactorRow {
-  direction: 'up' | 'down';
-  /** Signed inches, kept for the Fit Lab and for tests. Not shown as a number. */
-  contribution: number;
-}
-
-/**
- * The "why we recommend M" panel, structured around the decision the shopper
- * is making: what we know about you, what we know about this product, and how
- * those combined.
- */
-export interface FitExplanation {
-  profile: FitFactorRow[];
-  product: FitFactorRow[];
-  adjustments: FitAdjustment[];
-  /** One sentence tying the size back to the product's measurements. */
-  comparison: string;
+  comparisons: MeasurementComparison[];
 }
 
 /* ---------- Confidence ---------- */
 
 /**
- * How much the recommendation should be trusted, and — crucially — whether
- * it should be given at all.
+ * What the shopper is told about the strength of the match.
  *
- * Three inputs, all of them things we actually know:
- *   input       how the body numbers were obtained (measured vs estimated)
- *   separation  how clearly the winning size beats the runner-up
- *   brandData   how much fit history this brand has, and how consistent it is
- *
- * Below `WITHHOLD_BELOW` we do not name a size. Guessing on a thin brand for
- * a shopper who sits between two sizes is exactly the case where a wrong
- * answer costs a return, and "we don't know yet, here is the chart" is the
- * honest output.
+ * Qualitative on purpose: nothing here has been validated against real
+ * purchases, so a percentage would imply a calibration this does not have.
  */
 export type ConfidenceLevel = 'high' | 'medium' | 'low';
 
 export interface ConfidenceBreakdown {
-  /** 0-1 composite. Ranking artefact, not a validated probability. */
+  /** 0-1 composite. A ranking artefact, not a probability of being right. */
   score: number;
   level: ConfidenceLevel;
-  /** True when the level is too low to name a size. */
+  /** True when the level is too low to name a size at all. */
   withheld: boolean;
-  /** Each component, 0-1, so the UI and the Fit Lab can show the reason. */
   components: {
-    input: number;
+    /** How much of the shopper's body we actually know. */
+    completeness: number;
+    /** How well the winning size fits those measurements. */
+    closeness: number;
+    /** How clearly the winning size beats the runner-up. */
     separation: number;
-    brandData: number;
-    absoluteFit: number;
   };
-  /** One sentence naming the weakest component — what would improve it. */
-  limitingFactor: string;
-  /** True when the estimated-measurement path capped the level. */
-  cappedByEstimate: boolean;
+  /** One sentence naming what is holding the answer back, and what would
+   *  fix it. Null when nothing is. */
+  limitingFactor: string | null;
+  /** The specific measurements that would most improve this answer. */
+  missing: MeasurementKey[];
+}
+
+/* ---------- Advice ---------- */
+
+/**
+ * Something the shopper should weigh, shown beside the recommendation
+ * rather than folded silently into it.
+ *
+ * This is the honest home for "this brand runs small". Those claims are
+ * editorial or anecdotal, so they are surfaced as context the shopper can
+ * judge — never as an invisible adjustment to the number.
+ */
+export interface FitNote {
+  id: string;
+  /** Where the claim comes from, stated plainly. */
+  source: 'brand' | 'you';
+  label: string;
+  body: string;
+  /** Which way it points, when it points anywhere. */
+  direction: 'up' | 'down' | null;
+}
+
+/** An optional nudge when the shopper sits near a size boundary. */
+export type SizingHint = 'Consider sizing up' | 'Consider sizing down';
+
+/* ---------- The receipt ---------- */
+
+/**
+ * Exactly what went into the answer, and — just as important — what did
+ * not. Rendered verbatim in the UI, so the explanation cannot drift away
+ * from the computation.
+ */
+export interface FitReceipt {
+  /** The shopper's own inputs that were used. */
+  inputsUsed: { label: string; value: string }[];
+  /** Inputs that were asked for and not given. */
+  inputsMissing: { label: string; value: string }[];
+  /** The product-side facts that were used. */
+  productFacts: { label: string; value: string }[];
+  /** The ease target, in inches, and where it came from. */
+  easeTarget: { total: number; parts: { label: string; inches: number }[] };
+  /** Things deliberately excluded, named so the exclusion is checkable. */
+  notUsed: string[];
 }
 
 export interface FitRecommendation {
   productId: string;
-  /** The size the engine would pick if everything were in stock. */
+  /** The size the engine picks if everything is in stock. */
   idealSize: string;
-  /** The size the shopper should actually buy — equals `idealSize` unless it
-   *  is sold out. Still populated when `confidence.withheld` is true, so the
-   *  Fit Lab can inspect what we would have said; the UI must not show it. */
+  /** The size to actually buy — equals `idealSize` unless it is sold out.
+   *  Still populated when `confidence.withheld` is true so the reasoning
+   *  stays inspectable; the UI must not show it in that case. */
   recommendedSize: string;
-  /** Set when `idealSize` is unavailable and we fell back. */
   substitution: { unavailableSize: string; reason: string } | null;
-  /**
-   * Internal algorithmic score, 50–94. This is a ranking artefact of the
-   * heuristic, NOT a probability that the recommendation is correct — there
-   * is no validation data behind it. It is never shown to shoppers; it exists
-   * so the Fit Lab and analytics can compare recommendations to each other.
-   */
-  matchScore: number;
-  /** What the shopper actually sees. */
-  matchQuality: MatchQuality;
-  /** Whether we are confident enough to name a size at all. */
   confidence: ConfidenceBreakdown;
-  /** Optional nudge when the shopper sits near a size boundary. */
   sizingHint: SizingHint | null;
-  /** True when two adjacent sizes score almost identically. */
+  /** True when two adjacent sizes are effectively tied. */
   betweenSizes: boolean;
   summary: string;
-  /** Per-size detail powering the comparison table. */
   assessments: SizeAssessment[];
-  /** Structured explanation for the "why we recommend" panel. */
-  explanation: FitExplanation;
-  /** The body the engine reasoned about, in inches — measured or estimated. */
-  estimatedBody: BodyMeasurements;
-  /** Body after fit-class, preference and brand adjustments. */
-  effectiveBody: BodyMeasurements;
+  receipt: FitReceipt;
+  /** Advice to weigh, never applied silently. */
+  notes: FitNote[];
+  /** The measurements the shopper gave, echoed back. */
+  body: PartialMeasurements;
+  /** Ease the shopper asked for, in inches, from cut + preference. */
+  easeTarget: number;
   productFitClass: FitClass;
-  /** Short positive statements shown as ticks on the result screen. */
-  highlights: string[];
-  /** The brand-sizing correction actually applied, in inches, after blending
-   *  the published label with observed fit history. */
-  appliedBrandEase: number;
 }
 
-/** Everything the engine needs about the garment. Kept as a plain input type
- *  so the engine can be unit-tested without constructing a full Product. */
+/** Everything the engine needs about the garment. A plain input type so the
+ *  engine can be unit-tested without constructing a full Product. */
 export interface FitProductInput {
   id: string;
   brand: string;
   sizes: string[];
   soldOutSizes: string[];
+  /** The brand's published chart: size label -> the body it is cut for. */
   sizeChart: Record<string, BodyMeasurements>;
   fitClass: FitClass;
-  brandSizing?: { label: string; ease: number; note: string };
+  /** The brand's own published sizing note, shown as advice. */
+  brandSizing?: { label: string; note: string };
 }

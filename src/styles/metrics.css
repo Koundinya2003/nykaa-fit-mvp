@@ -151,3 +151,25 @@
   .metrics__primary { gap: var(--s-5); padding: var(--s-4); }
   .metrics__facts { gap: var(--s-5); }
 }
+
+/* What the recommendation is allowed to consult, stated as a short list
+   rather than a table of derived numbers — because after this rebuild the
+   honest answer is short. */
+.metrics__inputs {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: var(--s-3);
+  margin-top: var(--s-4);
+}
+
+.metrics__inputs li {
+  display: grid;
+  gap: 3px;
+  padding: var(--s-3) var(--s-4);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--r-sm);
+  background: var(--bg-muted);
+}
+
+.metrics__inputs strong { font-size: var(--fs-sm); }
+.metrics__inputs span { font-size: var(--fs-xs); color: var(--text-secondary); line-height: var(--lh-snug); }

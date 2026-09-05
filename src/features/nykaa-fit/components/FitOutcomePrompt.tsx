@@ -1,7 +1,6 @@
 import { useMemo, useState } from 'react';
 import type { BagItem } from '@/types';
 import { getProductById } from '@/data/products';
-import { brandFitHistory } from '../engine/brandFitHistory';
 import {
   recordOutcome,
   RETURN_REASON_LABEL,
@@ -9,6 +8,7 @@ import {
   type ReturnReason,
 } from '../utils/fitOutcomes';
 import { useFitOutcomes } from '../utils/useFitOutcomes';
+import { personalNotesFor } from '../utils/personalFitNotes';
 import { track } from '../analytics/fitAnalytics';
 import { CheckIcon } from '@/components/Icons';
 import '../styles/nykaa-fit.css';
@@ -17,13 +17,15 @@ import '../styles/nykaa-fit.css';
    Did it fit?
 
    Everything upstream of this is a prediction. This is the only place the
-   prototype finds out whether the prediction was right, and it is the
-   signal that turns a static heuristic into something that improves: the
-   answer goes straight into that brand's fit history, where it outweighs
-   six review opinions, and the next recommendation on that brand moves.
+   prototype finds out whether the prediction was right, and it is the only
+   fit signal the shopper cannot get from a size chart.
 
-   The shift is shown, not asserted — the panel prints the inches the brand's
-   applied ease moved as a result of what was just reported.
+   What it deliberately does NOT do is move the recommended size. One or
+   two returns is a real signal to a person and a hopeless statistic, and
+   quietly shifting a number computed from a published chart on that basis
+   would be exactly the kind of invisible fudge this feature exists without.
+   Her reports come back to her as advice on that brand — see
+   `personalFitNotes` — where her judgement can do the work ours cannot.
    ========================================================================= */
 
 interface Props {
@@ -49,7 +51,7 @@ export default function FitOutcomePrompt({ orderId, lines, recommendedByProduct 
     [lines],
   );
 
-  /** Outcomes reported against this order, keyed by bag line. */
+  /** Outcomes reported against this order, keyed by line. */
   const reported = useMemo(() => {
     const map = new Map<string, (typeof outcomes)[number]>();
     outcomes
@@ -74,6 +76,7 @@ export default function FitOutcomePrompt({ orderId, lines, recommendedByProduct 
       reason,
       recommendedSize: recommendedByProduct[productId] ?? null,
     });
+
     track('fit_outcome_reported', {
       order_id: orderId,
       product_id: productId,
@@ -84,8 +87,6 @@ export default function FitOutcomePrompt({ orderId, lines, recommendedByProduct 
       reason,
     });
 
-    // The effect on the brand is not asserted here — the row re-renders off
-    // the live store below and prints the shift the report actually caused.
     setPendingReturn(null);
   };
 
@@ -97,17 +98,16 @@ export default function FitOutcomePrompt({ orderId, lines, recommendedByProduct 
         Did it fit?
       </h2>
       <p className="fit-outcome__lede">
-        This is the only question that tells us whether the recommendation was right. Your answer
-        goes into that brand&rsquo;s fit history on this device and changes the next size we give
-        you for it — a reported return counts for six review opinions, because it is an outcome
-        rather than a comment.
+        The one thing a size chart can&rsquo;t tell us. Your answer is kept on this device and
+        shown back to you next time you look at this brand — we won&rsquo;t silently change a size
+        on the strength of one return, but you might want to.
       </p>
 
       <ul className="fit-outcome__list">
         {rows.map(({ line, product }) => {
           const key = `${product.id}::${line.size}`;
           const record = reported.get(key);
-          const history = brandFitHistory(product.brand, product.brandSizing);
+          const notes = personalNotesFor(product.brand, outcomes);
 
           return (
             <li key={line.key} className="fit-outcome__row">
@@ -129,20 +129,10 @@ export default function FitOutcomePrompt({ orderId, lines, recommendedByProduct 
                       ? 'Kept'
                       : `Returned — ${RETURN_REASON_LABEL[record.reason!]}`}
                   </p>
-                  <p className="fit-outcome__effect">
-                    {product.brand} now reads <strong>{history.label}</strong> ·{' '}
-                    {history.appliedEase >= 0 ? '+' : ''}
-                    {history.appliedEase.toFixed(2)}″ applied
-                    {history.shiftedByOutcomes && (
-                      <>
-                        {' '}
-                        <span className="fit-outcome__shift">
-                          ({history.outcomeShift > 0 ? '+' : ''}
-                          {history.outcomeShift.toFixed(2)}″ from your reports)
-                        </span>
-                      </>
-                    )}
-                  </p>
+                  {notes.length > 0 && (
+                    <p className="fit-outcome__effect">{notes[0].label}. You&rsquo;ll see this
+                      next time you open a {product.brand} product.</p>
+                  )}
                 </div>
               ) : pendingReturn === key ? (
                 <div className="fit-outcome__reasons">
@@ -161,11 +151,7 @@ export default function FitOutcomePrompt({ orderId, lines, recommendedByProduct 
                       </button>
                     ))}
                   </div>
-                  <button
-                    type="button"
-                    className="fit-link"
-                    onClick={() => setPendingReturn(null)}
-                  >
+                  <button type="button" className="fit-link" onClick={() => setPendingReturn(null)}>
                     Cancel
                   </button>
                 </div>
@@ -191,11 +177,6 @@ export default function FitOutcomePrompt({ orderId, lines, recommendedByProduct 
           );
         })}
       </ul>
-
-      <p className="fit-outcome__note">
-        Reported outcomes stay on this device. See the effect on every brand at{' '}
-        <a href="/metrics">/metrics</a>.
-      </p>
     </section>
   );
 }

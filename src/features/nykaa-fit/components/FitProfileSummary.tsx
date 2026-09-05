@@ -1,11 +1,11 @@
 import type { FitRecommendation } from '../types/fitTypes';
-import FitMatch from './FitMatch';
 import ConfidenceChip from './ConfidenceChip';
 import { RulerIcon } from '@/components/Icons';
 import '../styles/nykaa-fit.css';
 
 interface Props {
   recommendation: FitRecommendation;
+  brand: string;
   /** Whether the shopper has already picked the recommended size. */
   applied: boolean;
   selectable: boolean;
@@ -17,15 +17,16 @@ interface Props {
 }
 
 /**
- * Inline PDP card for a shopper who already has a profile.
+ * The inline PDP card for a shopper who already has a profile.
  *
- * Two states, and the second one matters more than the first: when the
- * confidence model declines to answer, this card does NOT name a size. It
- * says so and hands over to the brand's size chart. A recommender that
- * hedges while still printing a letter has not withheld anything.
+ * Two states, and the second matters more: when the confidence model
+ * declines to answer, this card does NOT name a size. It says so and hands
+ * over to the brand's chart. A recommender that hedges while still printing
+ * a letter has not withheld anything.
  */
 export default function FitProfileSummary({
   recommendation,
+  brand,
   applied,
   selectable,
   onSelect,
@@ -33,7 +34,7 @@ export default function FitProfileSummary({
   onEditProfile,
   onOpenSizeChart,
 }: Props) {
-  const { recommendedSize, matchQuality, sizingHint, substitution, confidence } = recommendation;
+  const { recommendedSize, sizingHint, substitution, confidence, notes } = recommendation;
 
   if (confidence.withheld) {
     return (
@@ -61,11 +62,11 @@ export default function FitProfileSummary({
 
         <div className="fit-summary__links">
           <button type="button" className="fit-link" onClick={onSeeWhy}>
-            Why we can&rsquo;t recommend a size
+            What we&rsquo;re missing
           </button>
           <span aria-hidden>·</span>
           <button type="button" className="fit-link" onClick={onEditProfile}>
-            Edit profile
+            Edit my measurements
           </button>
         </div>
       </section>
@@ -79,15 +80,17 @@ export default function FitProfileSummary({
           <RulerIcon size={15} />
           Nykaa Fit
         </span>
-        <FitMatch quality={matchQuality} variant="chip" />
+        <ConfidenceChip confidence={confidence} />
       </div>
 
-      <p className="fit-summary__eyebrow">Your recommended size</p>
+      <p className="fit-summary__eyebrow">Your size in this style</p>
 
       <div className="fit-summary__body">
         <span className="fit-summary__size">{recommendedSize}</span>
         <div className="fit-summary__copy">
-          <p className="fit-summary__sub">Based on your profile and this product&rsquo;s fit</p>
+          <p className="fit-summary__sub">
+            From your measurements and {brand}&rsquo;s published chart
+          </p>
           {sizingHint && <p className="fit-summary__hint">{sizingHint}</p>}
         </div>
         {!applied && selectable && (
@@ -102,28 +105,28 @@ export default function FitProfileSummary({
         {applied && <span className="fit-summary__applied">Selected</span>}
       </div>
 
-      <div className="fit-summary__confrow">
-        <ConfidenceChip confidence={confidence} />
-        {confidence.cappedByEstimate && (
-          <button type="button" className="fit-link" onClick={onEditProfile}>
-            Add measurements to raise this
-          </button>
-        )}
-      </div>
-
       {substitution && (
         <p className="fit-summary__notice" role="status">
           {substitution.reason}
         </p>
       )}
 
+      {notes.length > 0 && (
+        <p className="fit-summary__notecount">
+          {notes.length} thing{notes.length === 1 ? '' : 's'} to weigh before you buy —{' '}
+          <button type="button" className="fit-link" onClick={onSeeWhy}>
+            see {notes.length === 1 ? 'it' : 'them'}
+          </button>
+        </p>
+      )}
+
       <div className="fit-summary__links">
         <button type="button" className="fit-link" onClick={onSeeWhy}>
-          Why we recommend {recommendedSize}
+          Why {recommendedSize}, and what we used
         </button>
         <span aria-hidden>·</span>
         <button type="button" className="fit-link" onClick={onEditProfile}>
-          Edit profile
+          Edit my measurements
         </button>
       </div>
     </section>

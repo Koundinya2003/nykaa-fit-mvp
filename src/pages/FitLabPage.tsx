@@ -710,11 +710,13 @@ export default function FitLabPage() {
         {profile ? (
           <div className="fitlab__card fitlab__card--narrow">
             <p className="fitlab__card-value fitlab__card-value--sm">
-              {profile.heightCm} cm &middot; {profile.weightKg} kg
+              {Object.entries(profile.measurements)
+                .map(([key, value]) => `${key} ${value}″`)
+                .join(' · ') || 'No measurements given'}
             </p>
             <p className="fitlab__card-note">
-              {profile.gender} &middot; prefers {profile.preferredFit} fit
-              {profile.bodyShape ? ` · ${profile.bodyShape}` : ''}
+              prefers {profile.preferredFit} fit
+              {profile.heightCm ? ` · ${profile.heightCm} cm` : ''}
             </p>
             <div className="fitlab__actions">
               <button type="button" className="btn btn--sm btn--ghost" onClick={clearFitProfile}>

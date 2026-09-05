@@ -23,8 +23,9 @@ Nykaa Fit journey: **Wishlist → Resolve fit for all saved items → per-item s
 stock → Add to Bag**, or **Product → Find My Fit → bust, waist, hip, height → recommendation →
 why → Select size → Add to Bag**
 
-In a hurry? **[`/demo`](https://nykaa-fit-mvp.vercel.app/demo)** seeds a measured fit profile and
-a ten-item wishlist spanning nine brands, then lands on the wishlist with every item resolved.
+Start at **[`/fit-profile`](https://nykaa-fit-mvp.vercel.app/fit-profile)**. Enter your own
+measurements and the page sizes your saved items across brands live, before you save anything.
+Nothing here invents a body for you.
 
 ## Running it
 
@@ -60,8 +61,8 @@ Then open <http://localhost:5173>.
 | `/p/:productId` | Product detail |
 | `/bag` | Shopping bag |
 | `/wishlist` | Wishlist — per-item size, confidence, stock, and the resolve-all pass |
+| `/fit-profile` | Create, edit and delete your measurements, with a live cross-brand preview |
 | `/checkout` | Order review + confirmation, then the kept/returned prompt |
-| `/demo` | Seeds a fit profile plus a ten-item wishlist and lands on it resolved |
 | `/metrics` | The nine instrumented success metrics, with counts |
 | `/fit-lab` | Internal: experiment bucket, arm splits, raw event log |
 | `*` | Not found |
@@ -99,15 +100,16 @@ src/
 ```
 src/features/nykaa-fit/
   components/   FitBlock (orchestrator), FitCTA, FitProfileForm, FitResult,
-                FitProfileSummary, SizeComparison, FitPanel, ConfidenceChip,
-                FitAcrossProducts, WishlistFitCard, FitOutcomePrompt,
-                BrandFitHistoryPanel
-  engine/       fitEngine, scoring, bodyModel, confidence,
-                brandFitHistory              ← pure, no React, no network
+                FitProfileSummary, FitReceiptPanel, FitNotes, QuickAdjust,
+                SizeComparison, FitPanel, ConfidenceChip, FitAcrossProducts,
+                WishlistFitCard, FitOutcomePrompt
+  engine/       fitEngine, scoring, confidence  ← pure, no React, no network,
+                                                  no access to the catalogue's
+                                                  reviews (enforced by test)
   analytics/    fitAnalytics — pluggable sinks, localStorage by default
   experiment/   variant assignment + useVariant
   utils/        fitStorage, eligibility, wishlistFit, fitOutcomes,
-                fitResolutionStore, demoSeed, hooks
+                personalFitNotes, fitResolutionStore, quickStart, hooks
   types/        fitTypes
   styles/       nykaa-fit.css
 ```
@@ -115,74 +117,76 @@ src/features/nykaa-fit/
 **Scope.** Enabled only for women's dresses (`utils/eligibility.ts`). Every other product and the
 control bucket render the existing PDP untouched.
 
-**How the recommendation works.** Deterministic and offline — no AI API, no model, no randomness.
+**How the recommendation works.** Two inputs, and they are the only two.
 
 ```
-your body       measured bust / waist / hip, or estimated from height + weight
-  + product fit class     slim +0.8″ · regular 0 · relaxed −0.8″ · oversized −1.6″
-  + preferred fit         slim −0.7″ · regular 0 · relaxed +0.9″
-  + brand sizing          the published label, shrunk toward what shoppers
-                          actually reported about that brand
-  ────────────────────────────────────────────────────────────────
-  = effective body → nearest size in *this brand's* chart
-  → then a confidence check that can decline to answer
+your measurements   only the ones you entered — blanks stay blank
+  + the room you asked for   this garment's cut + your preferred fit
+  ─────────────────────────────────────────────────────────────────
+  = the body to look up -> nearest size in THIS BRAND'S published chart
+  -> then a confidence check that is allowed to decline
 ```
 
-**Measurements are the primary input.** Bust, waist, hip and height, because a measurement means
-the same thing in every brand and a size label does not: 34″ is 34″ at Kazo and at W for Woman,
-whereas "Medium" is not. Height and weight remain as an explicit *"I don't know my measurements"*
-fallback, which estimates the three girths with a girth index, √(kg / m) — approximating the torso
-as a cylinder of roughly constant density, circumference scales with the square root of mass over
-height. That path is a proxy, so it is capped at medium confidence everywhere, and the wishlist's
-"Ready to buy" bucket is unreachable from it.
+Deterministic and offline: no AI API, no model, no randomness, and no network call anywhere in
+the feature.
 
-Sizes are ranked by weighted distance (bust 0.45, waist 0.35, hip 0.20).
+**Nothing is estimated.** An earlier build asked for height and weight and derived bust, waist
+and hip from them with a girth model. That is guessing, and a guess presented as your body is
+worse than no answer, so the estimator has been deleted rather than de-emphasised. You enter
+whichever measurements you know — one, two or three — and the form tells you what each buys you.
+With none, the honest output is the brand's size chart and instructions for taking them.
 
-**Confidence, and the decision to say nothing.** Three things we actually know decide whether we
-answer at all: how the body numbers were obtained, how clearly the winning size beats the
-runner-up, and how much fit history the brand has and how much it agrees with itself — plus a
-sanity check that the winning size fits at all rather than being the least-bad option in the run.
-Below the threshold the UI names no size and hands over to the brand's published size chart. A
-shopper between two sizes on a thin-history brand is exactly where a wrong answer costs a return,
-and *"we don't know yet, here is the chart"* is the honest output. `engine/confidence.ts` holds
-the weights; the withholding case is covered by tests.
+**Partial profiles are first-class.** Weights renormalise over whatever you gave, skipped
+measurements are compared against nothing, and the confidence model treats completeness as a
+ceiling rather than another term to average in:
+
+```
+score = completeness x (closeness x 0.5 + separation x 0.5)
+```
+
+A flawless match on a waist alone is still only a statement about a waist, so a
+one-measurement profile can reach *medium* confidence but never *high* — which is what makes
+"add your bust and hip" a real offer rather than a nag.
+
+**Confidence, and the decision to say nothing.** Three signals, all of them things we actually
+observe: how much of your body you told us, how well the winning size fits it, and how clearly
+it beats the runner-up. Below the threshold the UI names no size and hands over to the published
+chart. Sitting exactly between two sizes scores near zero on separation and is withheld however
+complete your measurements are — that is the case a wrong answer costs you a return.
+
+**Advice is never arithmetic.** A brand's "runs small" note and any kept/returned outcomes you
+have reported yourself are shown *beside* the recommendation, never folded into it. Both are
+editorial or single data points; neither is strong enough to silently move a number computed
+from a published chart. You can see them and apply your own judgement, which on one data point
+is better than ours.
+
+**Every recommendation carries a receipt** listing the measurements used with their values, the
+ones you skipped (marked "not given — not estimated either"), the brand's chart rows, the ease
+target broken into the cut and your preference in inches, and an explicit list of what was *not*
+used. It is built in the same function call as the answer, so the explanation cannot drift from
+the computation.
 
 **No confidence percentage is shown to shoppers.** There is no validation data behind this
-heuristic, so a number would imply a probability of being right that it cannot support. Shoppers
-see qualitative language — *High / Medium confidence*, *Strong match*, *Good match*, *Closest
-available size*, plus an optional *Consider sizing up / down*. An internal `matchScore` is
-retained for ranking and analytics and is explicitly documented as an algorithmic score, not a
-probability.
+heuristic, so a number would imply a calibration it does not have. Shoppers see *High* /
+*Medium* confidence, or no size at all.
 
-**Brand fit behaviour is derived, not declared.** `engine/brandFitHistory.ts` aggregates every
-brand's review fit feedback and any kept/returned outcomes the shopper has reported into three
-numbers: how much evidence exists, which way the brand runs, and how much that evidence agrees
-with itself. The published label is the prior, and the observation is shrunk toward it in
-proportion to the evidence — `weight / (weight + 20)` — so a thin brand stays close to its own
-chart and a well-evidenced one is driven by what happened. A reported return is weighted six
-times a review, because it is an outcome rather than an opinion.
+**Product-specific by construction.** One profile (35 / 29.5 / 38.5, regular fit) against
+different brands' published charts:
 
-**The loop closes.** After an order is placed, the confirmation asks *did it fit?* per line, with
-a reason. The answer goes straight back into that brand's history and visibly moves the applied
-correction, the confidence, and — with enough agreeing reports — the size itself. `/metrics` shows
-the per-brand table with the shift each report caused.
-
-**Product-specific by construction.** Each brand has its own published chart (block + grade) *and*
-its own observed sizing behaviour. One measured profile (35 / 29.5 / 38.5, 164 cm, regular) gets:
-
-| Product | Cut | Brand reads as | Size |
+| Product | Cut | Size | Confidence |
 | --- | --- | --- | --- |
-| Libas Anarkali Maxi | regular | usually runs large | **S** |
-| AND Belted Shirt Dress | regular | consistently true to its chart | **M** |
-| Global Desi Boho Maxi | relaxed | usually true to its chart | **S** |
-| Vero Moda Ruched Bodycon | slim | usually runs small | **L** |
-| Kazo Sequin Party Dress | slim | usually runs small | **L** |
-| Biba Chikankari A-Line | regular | *(between sizes — withheld)* | **—** |
+| Kazo Sequin Party Dress | slim | **L** | High |
+| AND Belted Shirt Dress | regular | **M** | High |
+| ONLY Puff Sleeve Dress | regular | **M** | High |
+| W for Woman Tiered Midi | relaxed | **S** | High |
+| Libas Anarkali Maxi | regular | **S** | Medium |
 
-**Privacy.** The fit profile lives in `localStorage` and nowhere else. There is no network call in
-the feature, no photograph, and no computer vision. Analytics events carry the *decision* (which
-size was recommended, which was chosen) and never a body measurement — there is a test asserting
-this over every event the app can emit.
+Same body, four different letters. Nothing about other shoppers produced that spread — it is
+the charts.
+
+**Privacy.** The profile lives in `localStorage` and nowhere else. There is no network call in
+the feature, no photograph, and no computer vision. Analytics events carry the *decision* and
+never a body measurement — asserted by a test over every event the app can emit.
 
 **Measurement.** Every event goes through one abstraction with pluggable sinks —
 `product_view`, `fit_cta_clicked`, `fit_profile_started`, `fit_profile_completed`,
@@ -205,6 +209,12 @@ Every event carries `experiment_group`, `product_id`, `category` and, where rele
 
 **Body measurements never enter an event.** Height and weight stay in the fit profile in local
 storage; only the decision is recorded. A test asserts this over every event the app can emit.
+
+**No fabricated customer data.** The engine may consult the shopper's own inputs and the
+brand's published chart, and nothing else. That is easy to state and very easy to erode, so it
+is asserted structurally: a test walks every file under `engine/` and fails if any of them
+imports the review corpus or references a body estimator. An earlier build aggregated generated
+review sentiment per brand and displayed it as "18 fit reports"; that module is gone.
 
 **Experiment.** Control = existing PDP; treatment = PDP + Nykaa Fit. Primary metric is
 product-view → add-to-bag conversion. Assignment is a deterministic FNV-1a hash of a persisted

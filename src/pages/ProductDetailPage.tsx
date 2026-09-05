@@ -90,7 +90,7 @@ export default function ProductDetailPage() {
       category: product.subcategory,
       selected_size: next,
       recommended_size: recommended,
-      match_quality: fit.recommendation?.matchQuality,
+      confidence_level: fit.recommendation?.confidence.level,
       size_source: source,
       changed_from_recommendation: recommended !== null && next !== recommended,
       fit_profile_used: Boolean(fit.recommendation),
@@ -105,7 +105,7 @@ export default function ProductDetailPage() {
         category: product.subcategory,
         recommended_size: recommended,
         selected_size: next,
-        match_quality: fit.recommendation?.matchQuality,
+        confidence_level: fit.recommendation?.confidence.level,
         fit_profile_used: true,
       });
     }
@@ -130,7 +130,7 @@ export default function ProductDetailPage() {
       category: product.subcategory,
       selected_size: size,
       recommended_size: recommended,
-      match_quality: fit.recommendation?.matchQuality,
+      confidence_level: fit.recommendation?.confidence.level,
       size_source: sizeSource ?? 'manual',
       changed_from_recommendation: recommended !== null && size !== recommended,
       fit_profile_used: Boolean(fit.recommendation),

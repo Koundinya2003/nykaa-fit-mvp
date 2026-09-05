@@ -13,7 +13,7 @@ import WishlistPage from '@/pages/WishlistPage';
 import CheckoutPage from '@/pages/CheckoutPage';
 import FitLabPage from '@/pages/FitLabPage';
 import MetricsPage from '@/pages/MetricsPage';
-import DemoPage from '@/pages/DemoPage';
+import FitProfilePage from '@/pages/FitProfilePage';
 import NotFoundPage from '@/pages/NotFoundPage';
 
 export default function App() {
@@ -31,8 +31,9 @@ export default function App() {
           <Route path="/bag" element={<BagPage />} />
           <Route path="/wishlist" element={<WishlistPage />} />
           <Route path="/checkout" element={<CheckoutPage />} />
-          {/* One-click walkthrough: seeds a profile plus a wishlist. */}
-          <Route path="/demo" element={<DemoPage />} />
+          {/* The profile is a thing the shopper keeps, not a step inside
+              one purchase — so it gets its own page. */}
+          <Route path="/fit-profile" element={<FitProfilePage />} />
           {/* Instrumentation views. /metrics is the success-metric funnel;
               the Fit Lab is the deeper experiment read-out. */}
           <Route path="/metrics" element={<MetricsPage />} />

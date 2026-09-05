@@ -3,46 +3,47 @@ import { Link, useSearchParams } from 'react-router-dom';
 import { useShop } from '@/context/ShopContext';
 import { getProductById } from '@/data/products';
 import Breadcrumbs from '@/components/Breadcrumbs';
-import EmptyState from '@/components/EmptyState';
 import { RulerIcon, CheckIcon } from '@/components/Icons';
 import {
   WishlistFitCard,
-  resolveWishlist,
-  useFitProfile,
-  useFitEnabled,
-  useResolutions,
+  addQuickStartItems,
   isResolved,
   markResolved,
+  personalNotesFor,
+  resolveWishlist,
   track,
   trackOnce,
-  DEMO_ITEM_COUNT,
-  DEMO_BRAND_COUNT,
+  useFitEnabled,
+  useFitOutcomes,
+  useFitProfile,
+  useResolutions,
+  QUICK_START_COUNT,
+  QUICK_START_BRAND_COUNT,
   WISHLIST_WINDOW_DAYS,
   type ResolvedWishlistItem,
 } from '@/features/nykaa-fit';
 import '@/styles/wishlist.css';
 
 /* =========================================================================
-   The wishlist.
+   The wishlist — the surface this whole feature exists to serve.
 
-   This page is the whole argument. A wishlist is a queue of unresolved
-   questions, and the only one that never resolves itself is "will this fit?"
-   — a price question answers itself when the sale lands, but nobody's saved
-   Kazo dress spontaneously becomes a known size.
+   A wishlist is a queue of unresolved questions, and the only one that
+   never resolves itself is "will this fit?". So the page does one thing:
+   answer that for every saved item in a single pass, then sort the list by
+   what the shopper has to do next.
 
-   So the page does one thing: answer that question for every saved item in a
-   single pass, and then sort the list by what the shopper has to do next.
+   Nothing here is seeded. Items appear because she saved them, and their
+   ages are real, so the 30-day window on screen is the actual window.
    ========================================================================= */
 
-/** How long the resolve pass is animated for. Long enough to read as work
- *  being done across the list, short enough not to be in the way. */
 const RESOLVE_ANIMATION_MS = 650;
 
 export default function WishlistPage() {
-  const { wishlist, addToBag } = useShop();
+  const { wishlist, addToBag, setWishlistEntries } = useShop();
   const profile = useFitProfile();
   const fitEnabled = useFitEnabled();
   const resolutions = useResolutions();
+  const outcomes = useFitOutcomes();
   const [params, setParams] = useSearchParams();
   const [resolving, setResolving] = useState(false);
 
@@ -56,17 +57,25 @@ export default function WishlistPage() {
     [wishlist],
   );
 
+  const notesForBrand = useCallback(
+    (brand: string) => personalNotesFor(brand, outcomes),
+    [outcomes],
+  );
+
   const resolution = useMemo(
-    () => resolveWishlist(entries, profile),
-    [entries, profile],
+    () => resolveWishlist(entries, profile, Date.now(), notesForBrand),
+    [entries, profile, notesForBrand],
   );
 
   const profileVersion = profile?.updatedAt ?? 0;
+  const measurementCount = profile ? Object.keys(profile.measurements).length : 0;
+  const canResolve = fitEnabled && measurementCount > 0;
 
-  /** Items already answered against the CURRENT profile. Editing the profile
-   *  invalidates every stored answer, because they are no longer the answers. */
+  /** Items already answered against the CURRENT profile. Editing the
+   *  profile invalidates every stored answer, because they are no longer
+   *  the answers. */
   const resolvedIds = useMemo(() => {
-    void resolutions; // Re-derive whenever a pass records new resolutions.
+    void resolutions;
     return new Set(
       entries
         .filter(({ entry }) => isResolved(entry.productId, profileVersion))
@@ -82,23 +91,21 @@ export default function WishlistPage() {
     trackOnce(`wishlist_viewed:${entries.length}:${profileVersion}`, 'wishlist_viewed', {
       item_count: entries.length,
       fit_profile_used: Boolean(profile),
+      measurements_given: measurementCount,
     });
-  }, [entries.length, profile, profileVersion]);
+  }, [entries.length, profile, profileVersion, measurementCount]);
 
-  /**
-   * The one wishlist-level action. Runs the recommender across every saved
-   * item in one pass and logs each answer, so the funnel can show how many
-   * saved items had their fit question resolved.
-   */
+  /** The one wishlist-level action: run the recommender across every saved
+   *  item in a single pass and log each answer. */
   const resolveAll = useCallback(() => {
     if (!profile || entries.length === 0) return;
     setResolving(true);
 
-    const items = resolveWishlist(entries, profile).items;
+    const items = resolveWishlist(entries, profile, Date.now(), notesForBrand).items;
 
     track('wishlist_resolve_all', {
       item_count: items.length,
-      input_method: profile.method,
+      measurements_given: Object.keys(profile.measurements).length,
       fit_profile_used: true,
     });
 
@@ -110,11 +117,9 @@ export default function WishlistPage() {
         recommended_size: item.size,
         confidence_level: item.recommendation?.confidence.level,
         withheld: item.recommendation?.confidence.withheld ?? true,
-        match_quality: item.recommendation?.matchQuality,
         wishlist_group: item.group,
         days_saved: item.daysSaved,
         in_stock: item.inStock,
-        input_method: profile.method,
         fit_profile_used: true,
       });
     });
@@ -125,17 +130,22 @@ export default function WishlistPage() {
     );
 
     window.setTimeout(() => setResolving(false), RESOLVE_ANIMATION_MS);
-  }, [entries, profile]);
+  }, [entries, profile, notesForBrand]);
 
-  // /demo lands here with ?resolve=1 so an evaluator sees the finished state
-  // in one click rather than having to know to press the button.
+  // Arriving from the profile page with ?resolve=1 runs the pass on landing.
   useEffect(() => {
     if (params.get('resolve') !== '1') return;
-    if (profile && entries.length > 0) resolveAll();
+    if (canResolve && entries.length > 0) resolveAll();
     const next = new URLSearchParams(params);
     next.delete('resolve');
     setParams(next, { replace: true });
-  }, [params, setParams, profile, entries.length, resolveAll]);
+  }, [params, setParams, canResolve, entries.length, resolveAll]);
+
+  const handleQuickStart = () => {
+    const { wishlist: next, added } = addQuickStartItems(wishlist);
+    setWishlistEntries(next);
+    track('wishlist_quick_start', { item_count: added.length });
+  };
 
   const handleAddToBag = (item: ResolvedWishlistItem) => {
     if (!item.size) return;
@@ -156,27 +166,33 @@ export default function WishlistPage() {
     });
   };
 
+  /* ---- Empty ---- */
   if (entries.length === 0) {
     return (
       <div className="page wishlist">
         <Breadcrumbs trail={[{ label: 'Home', to: '/' }, { label: 'Wishlist' }]} />
-        <EmptyState
-          title="Your wishlist is empty"
-          body="Tap the heart on any product to keep it here. Your wishlist is saved on this device."
-          ctaLabel="Browse the catalogue"
-          ctaTo="/c/women"
-        />
-        <p className="wl-empty-demo">
-          Short on time? <Link to="/demo">Run the evaluator walkthrough</Link> — it seeds a profile
-          and {DEMO_ITEM_COUNT} saved items across {DEMO_BRAND_COUNT} brands.
-        </p>
+        <section className="wl-empty">
+          <h1 className="display wl-empty__title">Your wishlist is empty</h1>
+          <p className="wl-empty__body">
+            Tap the heart on any product to save it here. Once something is saved, Nykaa Fit can
+            tell you which size to buy in it — and whether that size is in stock.
+          </p>
+          <div className="wl-empty__actions">
+            <Link to="/c/dresses" className="btn btn--accent">
+              Browse dresses
+            </Link>
+            <button type="button" className="btn btn--ghost" onClick={handleQuickStart}>
+              Save {QUICK_START_COUNT} sample pieces to try this
+            </button>
+          </div>
+          <p className="wl-empty__note">
+            The sample pieces are real products from {QUICK_START_BRAND_COUNT} brands, saved now.
+            Your measurements are still yours to enter — we never invent those.
+          </p>
+        </section>
       </div>
     );
   }
-
-  const eligibleCount = entries.filter(
-    ({ product }) => product.subcategory === 'dresses' && product.gender === 'women',
-  ).length;
 
   return (
     <div className="page wishlist">
@@ -191,7 +207,7 @@ export default function WishlistPage() {
           </p>
         </div>
 
-        {fitEnabled && profile && (
+        {canResolve && (
           <div className="wl-head__action">
             <button
               type="button"
@@ -208,36 +224,36 @@ export default function WishlistPage() {
             </button>
             {allResolved && !resolving && (
               <p className="wl-resolve__done">
-                <CheckIcon size={14} /> Every saved item has been sized against your profile
+                <CheckIcon size={14} /> Every saved item sized against your measurements
               </p>
             )}
             {!allResolved && !resolving && (
               <p className="wl-resolve__sub">
-                {unresolvedCount} {unresolvedCount === 1 ? 'item has' : 'items have'} an
-                unanswered fit question
+                {unresolvedCount} {unresolvedCount === 1 ? 'item has' : 'items have'} an unanswered
+                fit question
               </p>
             )}
           </div>
         )}
       </header>
 
-      {/* ---- Empty profile: the paid-once, reused-everywhere promise ---- */}
+      {/* ---- No profile at all ---- */}
       {fitEnabled && !profile && (
         <section className="wl-prompt">
           <p className="wl-prompt__eyebrow">
             <RulerIcon size={15} /> Nykaa Fit
           </p>
           <h2 className="wl-prompt__title">
-            Answer 4 questions once and we&rsquo;ll size all {entries.length} saved{' '}
+            Enter your measurements once and we&rsquo;ll size all {entries.length} saved{' '}
             {entries.length === 1 ? 'item' : 'items'}
           </h2>
           <p className="wl-prompt__body">
-            Bust, waist, hip and height. You give them once, on this device, and every saved item
-            gets a size against the brand that made it — {eligibleCount} of these{' '}
-            {eligibleCount === 1 ? 'is' : 'are'} in a category we cover today. Nothing is uploaded.
+            Bust, waist and hip, in inches. We compare them against each brand&rsquo;s own
+            published chart — so you get a size per brand, not one letter you hope travels. Your
+            measurements stay on this device, and we never estimate the ones you skip.
           </p>
           <div className="wl-prompt__actions">
-            <Link to="/demo" className="btn btn--accent">
+            <Link to="/fit-profile" className="btn btn--accent">
               Set up my fit profile
             </Link>
             <Link to={`/p/${entries[0].product.id}`} className="btn btn--ghost">
@@ -247,25 +263,40 @@ export default function WishlistPage() {
         </section>
       )}
 
-      {/* ---- Not yet resolved: make the action obvious ---- */}
-      {fitEnabled && profile && !allResolved && !resolving && (
+      {/* ---- Profile exists but has no measurements ---- */}
+      {fitEnabled && profile && measurementCount === 0 && (
+        <section className="wl-prompt">
+          <p className="wl-prompt__eyebrow">
+            <RulerIcon size={15} /> Nykaa Fit
+          </p>
+          <h2 className="wl-prompt__title">Your profile has no measurements yet</h2>
+          <p className="wl-prompt__body">
+            We have your fit preference but nothing to compare against a size chart. Add even one
+            measurement and every saved dress below gets an answer.
+          </p>
+          <div className="wl-prompt__actions">
+            <Link to="/fit-profile" className="btn btn--accent">
+              Add my measurements
+            </Link>
+          </div>
+        </section>
+      )}
+
+      {/* ---- Ready to resolve ---- */}
+      {canResolve && !allResolved && !resolving && (
         <p className="wl-hint">
-          Your fit profile is saved. Run one pass and every item below is sorted by what you have
-          to do next.
+          Sized on your{' '}
+          {measurementCount === 3 ? 'three measurements' : `${measurementCount} measurement${measurementCount === 1 ? '' : 's'}`}
+          . Run one pass and every item below is sorted by what you have to do next.{' '}
+          <Link to="/fit-profile">Edit your measurements</Link>
         </p>
       )}
 
-      {/* ---- The measured-path payoff, stated where it is felt ----
-          An estimated body cannot reach "confirmed", so this list has no
-          ready-to-buy group at all until real measurements arrive. That is
-          the argument for asking for them, made concrete rather than
-          asserted. */}
-      {fitEnabled && profile?.method === 'estimated' && allResolved && (
+      {canResolve && measurementCount < 3 && allResolved && (
         <p className="wl-hint wl-hint--upgrade">
-          Your measurements are estimated from height and weight, so nothing here can be
-          confirmed — every sized item sits under &ldquo;Needs a decision&rdquo;.{' '}
-          <Link to={`/p/${entries[0].product.id}`}>Add your bust, waist and hip</Link> and the
-          items we are sure about move up to &ldquo;Ready to buy&rdquo;.
+          You&rsquo;ve given {measurementCount} of 3 measurements, so fewer items can be confirmed.{' '}
+          <Link to="/fit-profile">Add the rest</Link> and items we become sure about move up to
+          &ldquo;Ready to buy&rdquo;.
         </p>
       )}
 

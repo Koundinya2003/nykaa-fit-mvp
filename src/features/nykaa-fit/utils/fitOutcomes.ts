@@ -8,10 +8,13 @@
    small.
 
    So after an order is placed we ask, once, per line: did you keep it, and
-   if not, why. Those answers are stored on this device and folded straight
-   back into that brand's fit history (see engine/brandFitHistory.ts), where
-   they carry more weight than a review's free-text opinion because they are
-   an outcome rather than a sentiment.
+   if not, why. Those answers are stored on this device and shown back to
+   the shopper as advice on that brand (see utils/personalFitNotes.ts).
+
+   They deliberately do NOT move the recommended size. One or two returns is
+   a real signal to a person and a hopeless statistic, and quietly shifting
+   a number computed from a published chart on that basis is exactly the
+   sort of invisible adjustment this feature does without.
 
    Nothing here leaves the browser. In a production build this is the event
    that would be joined to the order in the warehouse.

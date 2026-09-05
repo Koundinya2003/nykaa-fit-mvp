@@ -1,15 +1,17 @@
 import { useEffect, useState } from 'react';
 import { Link, useSearchParams, useLocation } from 'react-router-dom';
 import { useShop } from '@/context/ShopContext';
+import { useFitProfile, hasMeasurements } from '@/features/nykaa-fit';
 import { ANNOUNCEMENTS } from '@/data/homeContent';
 import Navigation from './Navigation';
 import MobileNav from './MobileNav';
 import SearchBar from './SearchBar';
-import { BagIcon, HeartIcon, MenuIcon, UserIcon } from './Icons';
+import { BagIcon, HeartIcon, MenuIcon, UserIcon, RulerIcon } from './Icons';
 import '@/styles/layout.css';
 
 export default function Header() {
   const { summary, wishlist } = useShop();
+  const hasFitProfile = hasMeasurements(useFitProfile());
   const [menuOpen, setMenuOpen] = useState(false);
   const [announcement, setAnnouncement] = useState(0);
   const [params] = useSearchParams();
@@ -58,6 +60,16 @@ export default function Header() {
               <UserIcon />
               <span>Account</span>
             </button>
+
+            {/* The profile is reused on every product, so it belongs in the
+                chrome rather than only inside one product page. */}
+            <Link to="/fit-profile" className="header__action" title="Your fit profile">
+              <span className="header__action-icon">
+                <RulerIcon />
+                {hasFitProfile && <span className="header__dot" aria-hidden />}
+              </span>
+              <span>My Fit</span>
+            </Link>
 
             <Link to="/wishlist" className="header__action">
               <span className="header__action-icon">

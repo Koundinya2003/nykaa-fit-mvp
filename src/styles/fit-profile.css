@@ -1,0 +1,251 @@
+/* =========================================================================
+   /fit-profile — the profile as something the shopper owns.
+
+   Two columns on desktop: the form she edits, and a live preview of what
+   those numbers do across brands. The preview is the argument for filling
+   the form in, so it must never be below the fold on a wide screen.
+   ========================================================================= */
+
+@import '@/styles/tokens.css';
+
+.fitprofile { padding-block: var(--s-6) var(--s-16); }
+
+.fitprofile__head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--s-6);
+  flex-wrap: wrap;
+  padding-bottom: var(--s-5);
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.fitprofile__eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--fs-2xs);
+  font-weight: 700;
+  letter-spacing: var(--track-wider);
+  text-transform: uppercase;
+  color: var(--c-pink-600);
+}
+
+.fitprofile__title { margin-top: var(--s-2); font-size: var(--fs-3xl); }
+
+.fitprofile__lede {
+  margin-top: var(--s-3);
+  max-width: 66ch;
+  font-size: var(--fs-base);
+  color: var(--text-secondary);
+  line-height: var(--lh-normal);
+}
+
+.fitprofile__saved-at { font-size: var(--fs-xs); color: var(--text-tertiary); }
+
+.fitprofile__layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.05fr) minmax(0, 0.95fr);
+  gap: var(--s-10);
+  margin-top: var(--s-8);
+  align-items: start;
+}
+
+.fitprofile__form { min-width: 0; }
+
+.fitprofile__flash {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: var(--s-4);
+  padding: var(--s-3) var(--s-4);
+  border-radius: var(--r-sm);
+  background: var(--c-success-bg);
+  color: var(--c-success);
+  font-size: var(--fs-sm);
+  font-weight: 600;
+}
+
+.fitprofile__danger {
+  margin-top: var(--s-8);
+  padding-top: var(--s-5);
+  border-top: 1px solid var(--border-subtle);
+}
+
+.fitprofile__danger p {
+  margin-top: var(--s-2);
+  font-size: var(--fs-xs);
+  color: var(--text-tertiary);
+  line-height: var(--lh-snug);
+  max-width: 56ch;
+}
+
+/* ---------- Live preview ---------- */
+.fitprofile__preview {
+  position: sticky;
+  top: calc(var(--header-h) + var(--s-4));
+  padding: var(--s-5);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--r-md);
+  background: var(--bg-muted);
+  min-width: 0;
+}
+
+.fitprofile__preview-title {
+  font-size: var(--fs-base);
+  font-weight: 700;
+}
+
+.fitprofile__preview-empty {
+  margin-top: var(--s-3);
+  font-size: var(--fs-sm);
+  color: var(--text-secondary);
+  line-height: var(--lh-normal);
+}
+
+.fitprofile__rows { display: grid; gap: var(--s-2); margin-top: var(--s-4); }
+
+.fitprofile__row {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  padding: var(--s-2) var(--s-3);
+  border-radius: var(--r-sm);
+  background: var(--bg-page);
+  min-width: 0;
+}
+
+.fitprofile__size {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 38px;
+  height: 38px;
+  padding-inline: 6px;
+  border-radius: var(--r-sm);
+  background: var(--c-ink-900);
+  color: var(--c-white);
+  font-size: var(--fs-md);
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.fitprofile__size.is-medium { background: var(--c-ink-700); }
+.fitprofile__size.is-none { background: var(--bg-sunken); color: var(--text-tertiary); }
+
+.fitprofile__meta { display: grid; gap: 1px; min-width: 0; flex: 1; }
+
+.fitprofile__brand {
+  font-size: var(--fs-2xs);
+  font-weight: 700;
+  letter-spacing: var(--track-wide);
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+}
+
+.fitprofile__name {
+  font-size: var(--fs-sm);
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.fitprofile__row:hover .fitprofile__name { color: var(--accent); }
+
+.fitprofile__level {
+  font-size: 10px;
+  color: var(--text-tertiary);
+  text-align: right;
+  flex-shrink: 0;
+}
+
+.fitprofile__insight {
+  margin-top: var(--s-4);
+  padding: var(--s-3) var(--s-4);
+  border-left: 2px solid var(--accent);
+  background: var(--bg-page);
+  font-size: var(--fs-sm);
+  color: var(--text-secondary);
+  line-height: var(--lh-normal);
+}
+
+.fitprofile__privacy {
+  display: flex;
+  gap: var(--s-3);
+  margin-top: var(--s-5);
+  padding-top: var(--s-4);
+  border-top: 1px solid var(--border-subtle);
+}
+
+.fitprofile__privacy svg { flex-shrink: 0; color: var(--text-tertiary); margin-top: 2px; }
+.fitprofile__privacy-title { font-size: var(--fs-xs); font-weight: 700; }
+.fitprofile__privacy p { font-size: var(--fs-xs); color: var(--text-tertiary); line-height: var(--lh-snug); }
+
+.fitprofile__actions { margin-top: var(--s-4); }
+.fitprofile__actions .btn { width: 100%; }
+
+/* ---------- Method ---------- */
+.fitprofile__method {
+  margin-top: var(--s-12);
+  padding-top: var(--s-6);
+  border-top: 1px solid var(--border-subtle);
+}
+
+.fitprofile__method-title { font-size: var(--fs-lg); font-weight: 700; }
+
+.fitprofile__steps {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: var(--s-4);
+  margin-top: var(--s-5);
+  counter-reset: step;
+  list-style: none;
+}
+
+.fitprofile__steps li {
+  position: relative;
+  padding: var(--s-4);
+  padding-top: var(--s-8);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--r-md);
+  font-size: var(--fs-sm);
+  color: var(--text-secondary);
+  line-height: var(--lh-normal);
+}
+
+.fitprofile__steps li::before {
+  counter-increment: step;
+  content: counter(step);
+  position: absolute;
+  top: var(--s-4);
+  left: var(--s-4);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: var(--r-full);
+  background: var(--c-ink-900);
+  color: var(--c-white);
+  font-size: var(--fs-2xs);
+  font-weight: 700;
+}
+
+.fitprofile__steps strong { color: var(--text-primary); }
+
+.fitprofile__method-note,
+.fitprofile__foot {
+  margin-top: var(--s-5);
+  max-width: 78ch;
+  font-size: var(--fs-xs);
+  color: var(--text-tertiary);
+  line-height: var(--lh-normal);
+}
+
+.fitprofile__method-note a, .fitprofile__foot a { color: var(--accent); font-weight: 600; }
+
+@media (max-width: 900px) {
+  .fitprofile__layout { grid-template-columns: 1fr; gap: var(--s-6); }
+  .fitprofile__preview { position: static; }
+}

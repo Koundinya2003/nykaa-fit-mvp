@@ -2,10 +2,12 @@
    needs is re-exported here; nothing else reaches into the folder. */
 
 export { default as FitBlock } from './components/FitBlock';
+export { default as FitProfileForm } from './components/FitProfileForm';
 export { default as WishlistFitCard } from './components/WishlistFitCard';
 export { default as ConfidenceChip } from './components/ConfidenceChip';
 export { default as FitOutcomePrompt } from './components/FitOutcomePrompt';
-export { default as BrandFitHistoryPanel } from './components/BrandFitHistoryPanel';
+export { default as FitReceiptPanel } from './components/FitReceiptPanel';
+export { default as FitNotes } from './components/FitNotes';
 
 export { useFitRecommendation, type FitState } from './utils/useFitRecommendation';
 export { isFitEligible, FIT_ELIGIBLE_CATEGORY_LABEL } from './utils/eligibility';
@@ -16,6 +18,7 @@ export {
   saveFitProfile,
   clearFitProfile,
   getFitProfile,
+  hasMeasurements,
   migrateProfile,
 } from './utils/fitStorage';
 export {
@@ -33,6 +36,13 @@ export {
   type OutcomeRecord,
   type ReturnReason,
 } from './utils/fitOutcomes';
+export { personalNotesFor } from './utils/personalFitNotes';
+export {
+  addQuickStartItems,
+  QUICK_START_COUNT,
+  QUICK_START_BRAND_COUNT,
+  QUICK_START_SIZEABLE_COUNT,
+} from './utils/quickStart';
 export {
   resolveWishlist,
   resolveWishlistItem,
@@ -48,18 +58,20 @@ export {
 
 export { recommendForProduct, recommendSize } from './engine/fitEngine';
 export {
-  brandFitHistory,
-  allBrandFitHistories,
-  type BrandFitHistory,
-} from './engine/brandFitHistory';
-export {
   assessConfidence,
   CONFIDENCE_LABEL,
   CONFIDENCE_WEIGHTS,
   HIGH_AT,
   WITHHOLD_BELOW,
-  INPUT_CONFIDENCE,
 } from './engine/confidence';
+export {
+  easeTargetFor,
+  providedKeys,
+  CUT_EASE,
+  CUT_EASE_LABEL,
+  PREFERENCE_EASE,
+  PREFERENCE_LABEL,
+} from './engine/scoring';
 
 export {
   track,
@@ -80,18 +92,17 @@ export {
 
 export { applyVariantFromSearch, getVariant, isFitEnabled } from './experiment/variant';
 export { useVariant, useFitEnabled } from './experiment/useVariant';
-export type {
-  ConfidenceBreakdown,
-  ConfidenceLevel,
-  FitInputMethod,
-  FitProfile,
-  FitRecommendation,
-} from './types/fitTypes';
 
 export {
-  seedDemo,
-  DEMO_PROFILE,
-  DEMO_WISHLIST_IDS,
-  DEMO_ITEM_COUNT,
-  DEMO_BRAND_COUNT,
-} from './utils/demoSeed';
+  MEASUREMENT_KEYS,
+  MEASUREMENT_LABEL,
+  MEASUREMENT_HOWTO,
+  type ConfidenceBreakdown,
+  type ConfidenceLevel,
+  type FitNote as FitNoteType,
+  type FitProfile,
+  type FitRecommendation,
+  type MeasurementKey,
+  type PartialMeasurements,
+  type PreferredFit,
+} from './types/fitTypes';
