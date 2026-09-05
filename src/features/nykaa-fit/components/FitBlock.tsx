@@ -19,6 +19,9 @@ interface Props {
   selectedSize: string | null;
   /** Applies a size to the PDP's size selector. */
   onSelectSize: (size: string, source: 'recommended') => void;
+  /** Opens the brand's published size chart — where a withheld
+   *  recommendation sends the shopper instead of guessing. */
+  onOpenSizeChart: () => void;
 }
 
 type PanelMode = 'closed' | 'form' | 'result';
@@ -37,6 +40,7 @@ export default function FitBlock({
   viewKey,
   selectedSize,
   onSelectSize,
+  onOpenSizeChart,
 }: Props) {
   const { enabled, eligible, profile, recommendation, selectable } = state;
   const [mode, setMode] = useState<PanelMode>('closed');
@@ -54,9 +58,14 @@ export default function FitBlock({
         product_id: product.id,
         brand: product.brand,
         category: product.subcategory,
-        recommended_size: recommendation.recommendedSize,
+        recommended_size: recommendation.confidence.withheld
+          ? null
+          : recommendation.recommendedSize,
         match_quality: recommendation.matchQuality,
         match_score: recommendation.matchScore,
+        confidence_level: recommendation.confidence.level,
+        withheld: recommendation.confidence.withheld,
+        input_method: profile.method,
         fit_profile_used: true,
       },
     );
@@ -93,6 +102,7 @@ export default function FitBlock({
     track('fit_profile_completed', {
       product_id: product.id,
       profile_origin: wasExisting ? 'edited' : 'new',
+      input_method: input.method,
     });
     setJustCompleted(true);
     setMode('result');
@@ -129,6 +139,7 @@ export default function FitBlock({
             setMode('result');
           }}
           onEditProfile={() => openForm('edit')}
+          onOpenSizeChart={onOpenSizeChart}
         />
       ) : (
         <FitCTA onClick={() => openForm('cta')} />
@@ -139,7 +150,7 @@ export default function FitBlock({
         title={mode === 'form' ? 'Find My Fit' : 'Your recommended size'}
         subtitle={
           mode === 'form'
-            ? "Tell us a little about yourself and we'll recommend a size for this product."
+            ? 'Four measurements, once. We size every product against the brand that made it.'
             : `${product.brand} — ${product.name}`
         }
         onClose={() => setMode('closed')}
@@ -162,6 +173,10 @@ export default function FitBlock({
             onSelect={handleSelect}
             onEditProfile={() => openForm('edit')}
             onNavigateAway={() => setMode('closed')}
+            onOpenSizeChart={() => {
+              setMode('closed');
+              onOpenSizeChart();
+            }}
           />
         )}
       </FitPanel>

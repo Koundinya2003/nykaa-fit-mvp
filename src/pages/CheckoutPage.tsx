@@ -8,7 +8,13 @@ import ProductImageView from '@/components/ProductImage';
 import Breadcrumbs from '@/components/Breadcrumbs';
 import EmptyState from '@/components/EmptyState';
 import { CheckIcon } from '@/components/Icons';
-import { track, trackOnce } from '@/features/nykaa-fit';
+import {
+  FitOutcomePrompt,
+  getFitProfile,
+  recommendForProduct,
+  track,
+  trackOnce,
+} from '@/features/nykaa-fit';
 import '@/styles/bag.css';
 
 /** Checkout is intentionally a review-and-confirm step: this MVP has no
@@ -16,7 +22,14 @@ import '@/styles/bag.css';
 export default function CheckoutPage() {
   const { bag, summary, clearBag } = useShop();
   const navigate = useNavigate();
-  const [placed, setPlaced] = useState<{ id: string; total: number } | null>(null);
+  const [placed, setPlaced] = useState<{
+    id: string;
+    total: number;
+    lines: typeof bag;
+    /** What Nykaa Fit had recommended per product at the time of the order,
+     *  captured before the bag is cleared. */
+    recommended: Record<string, string | null>;
+  } | null>(null);
 
   const lines = bag
     .map((line) => ({ line, product: getProductById(line.productId) }))
@@ -49,12 +62,21 @@ export default function CheckoutPage() {
         <p className="confirm__note">
           This is a prototype — no payment was taken and nothing will be shipped.
         </p>
+
+        {/* The loop that closes the feature: whether the size was right is
+            the only thing browsing behaviour cannot tell us. */}
+        <FitOutcomePrompt
+          orderId={placed.id}
+          lines={placed.lines}
+          recommendedByProduct={placed.recommended}
+        />
+
         <div className="confirm__actions">
           <Link to="/" className="btn btn--primary btn--sm">
             Back to home
           </Link>
-          <Link to="/c/women" className="btn btn--ghost btn--sm">
-            Keep shopping
+          <Link to="/wishlist" className="btn btn--ghost btn--sm">
+            Back to wishlist
           </Link>
         </div>
       </div>
@@ -77,20 +99,40 @@ export default function CheckoutPage() {
 
   const placeOrder = () => {
     const id = `NF${Date.now().toString().slice(-8)}`;
+    const profile = getFitProfile();
+    const recommended: Record<string, string | null> = {};
+
     // One purchase event per line, so conversion can be attributed back to the
     // product (and to whether Nykaa Fit picked the size).
     lines.forEach(({ line, product }) => {
+      const rec = profile ? recommendForProduct(profile, product) : null;
+      const recommendedSize = rec && !rec.confidence.withheld ? rec.recommendedSize : null;
+      recommended[product.id] = recommendedSize;
+
       track('purchase', {
         order_id: id,
         product_id: product.id,
         brand: product.brand,
         category: product.subcategory,
         selected_size: line.size,
+        recommended_size: recommendedSize,
+        changed_from_recommendation:
+          recommendedSize !== null && line.size !== recommendedSize,
+        confidence_level: rec?.confidence.level,
+        fit_profile_used: Boolean(profile),
         quantity: line.quantity,
         value: product.price * line.quantity,
       });
     });
-    setPlaced({ id, total: summary.payable });
+
+    // The bag is cleared below, so the lines the outcome prompt asks about
+    // are captured here rather than read back off the emptied bag.
+    setPlaced({
+      id,
+      total: summary.payable,
+      lines: lines.map(({ line }) => line),
+      recommended,
+    });
     clearBag();
   };
 

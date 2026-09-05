@@ -1,5 +1,6 @@
 import type { BodyMeasurements, Product } from '@/types';
 import type {
+  ConfidenceBreakdown,
   FitAdjustment,
   FitExplanation,
   FitProductInput,
@@ -8,7 +9,9 @@ import type {
   MeasurementVerdict,
   SizeAssessment,
 } from '../types/fitTypes';
-import { estimateBody } from './bodyModel';
+import { bodyFor } from './bodyModel';
+import { brandFitHistory, type BrandFitHistory } from './brandFitHistory';
+import { assessConfidence } from './confidence';
 import {
   assessSize,
   effectiveBody,
@@ -22,16 +25,17 @@ import {
 /* =========================================================================
    The recommendation engine.
 
-       estimated body
+       body (measured, or estimated from height + weight)
      + product fit class
      + preferred fit
-     + brand sizing
-     -----------------------------
+     + brand sizing, corrected by that brand's observed fit history
+     ---------------------------------------------------------------
      = effective body -> nearest size in this brand's chart
+     -> and a confidence check that can decline to answer
 
    Pure and synchronous: no network, no model, no randomness. The same
-   profile and product always produce the same recommendation, which is what
-   makes it testable and explainable.
+   profile, product and fit history always produce the same recommendation,
+   which is what makes it testable and explainable.
    ========================================================================= */
 
 const FIT_CLASS_LABEL = {
@@ -78,13 +82,18 @@ export function recommendForProduct(
 export function recommendSize(
   profile: FitProfile,
   product: FitProductInput,
+  /** Injected so the engine stays pure and testable; defaults to the live
+   *  store, which folds in whatever outcomes the shopper has reported. */
+  history: BrandFitHistory = brandFitHistory(product.brand, product.brandSizing),
 ): FitRecommendation | null {
   // Only sizes the product actually offers *and* has a chart entry for.
   const sizes = product.sizes.filter((s) => product.sizeChart[s]);
   if (sizes.length === 0) return null;
 
-  const brandEase = product.brandSizing?.ease ?? 0;
-  const body = estimateBody(profile);
+  // The brand correction is what the evidence supports, not what the label
+  // claims — see engine/brandFitHistory.ts.
+  const brandEase = history.appliedEase;
+  const body = bodyFor(profile);
   const effective = effectiveBody(body, product.fitClass, profile.preferredFit, brandEase);
 
   const assessments: SizeAssessment[] = sizes.map((size) =>
@@ -109,6 +118,14 @@ export function recommendSize(
 
   const substitution = buildSubstitution(ideal, chosen, availableByDistance.length);
 
+  const confidence = assessConfidence({
+    method: profile.method,
+    bestDistance: chosen.distance,
+    runnerUpDistance: runnerUp?.distance ?? null,
+    brandDataConfidence: history.dataConfidence,
+    substituted: substitution !== null,
+  });
+
   return {
     productId: product.id,
     idealSize: ideal.size,
@@ -116,15 +133,17 @@ export function recommendSize(
     substitution,
     matchScore,
     matchQuality: matchQualityFor(chosen.distance, substitution !== null),
+    confidence,
     sizingHint: sizingHintFor(chosen, runnerUp, SIZE_ORDER, betweenSizes),
     betweenSizes,
-    summary: buildSummary(profile, product, chosen, betweenSizes),
+    summary: buildSummary(profile, product, chosen, betweenSizes, confidence),
     assessments,
-    explanation: buildExplanation(profile, product, chosen),
+    explanation: buildExplanation(profile, product, chosen, history),
     estimatedBody: body,
     effectiveBody: roundBody(effective),
     productFitClass: product.fitClass,
     highlights: buildHighlights(profile, chosen),
+    appliedBrandEase: Math.round(brandEase * 100) / 100,
   };
 }
 
@@ -151,9 +170,16 @@ function buildSummary(
   product: FitProductInput,
   chosen: SizeAssessment,
   betweenSizes: boolean,
+  confidence: ConfidenceBreakdown,
 ): string {
   const cut = FIT_CLASS_LABEL[product.fitClass].toLowerCase();
   const pref = PREFERENCE_LABEL[profile.preferredFit].toLowerCase();
+
+  // Withheld recommendations must not describe a size at all — naming one
+  // and then saying we are unsure is the worst of both.
+  if (confidence.withheld) {
+    return `We are not confident enough to recommend a size on this ${cut}-cut style. ${confidence.limitingFactor} Use the brand's size chart below and compare it against your own measurements.`;
+  }
 
   // When the bust and waist read the same, say it once rather than repeating
   // the adjective back at the shopper.
@@ -162,8 +188,13 @@ function buildSummary(
       ? describe(chosen.verdicts.bust, 'bust and waist')
       : `${describe(chosen.verdicts.bust, 'bust')} and ${describe(chosen.verdicts.waist, 'waist')}`;
 
+  const basis =
+    profile.method === 'measured'
+      ? 'Based on your measurements'
+      : 'Based on measurements estimated from your height and weight';
+
   const base =
-    `Based on your height, weight and preference for a ${pref} fit, ${chosen.size} should be ` +
+    `${basis} and your preference for a ${pref} fit, ${chosen.size} should be ` +
     `${body} on this ${cut}-cut style.`;
 
   return betweenSizes
@@ -232,14 +263,28 @@ function buildExplanation(
   profile: FitProfile,
   product: FitProductInput,
   chosen: SizeAssessment,
+  history: BrandFitHistory,
 ): FitExplanation {
-  const profileRows = [
-    { label: 'Height', value: `${profile.heightCm} cm` },
-    { label: 'Weight', value: `${profile.weightKg} kg` },
-    { label: 'Preferred fit', value: `${PREFERENCE_LABEL[profile.preferredFit]} fit` },
-  ];
+  const profileRows: FitExplanation['profile'] =
+    profile.method === 'measured' && profile.measurements
+      ? [
+          { label: 'Bust', value: `${profile.measurements.bust}″` },
+          { label: 'Waist', value: `${profile.measurements.waist}″` },
+          { label: 'Hip', value: `${profile.measurements.hip}″` },
+          { label: 'Height', value: `${profile.heightCm} cm` },
+          { label: 'Preferred fit', value: `${PREFERENCE_LABEL[profile.preferredFit]} fit` },
+        ]
+      : [
+          { label: 'Height', value: `${profile.heightCm} cm` },
+          { label: 'Weight', value: `${profile.weightKg ?? '—'} kg` },
+          { label: 'Preferred fit', value: `${PREFERENCE_LABEL[profile.preferredFit]} fit` },
+          {
+            label: 'Measurements',
+            value: 'Estimated, not measured',
+          },
+        ];
 
-  if (profile.bodyShape) {
+  if (profile.method === 'estimated' && profile.bodyShape) {
     profileRows.push({
       label: 'Body shape',
       value: profile.bodyShape[0].toUpperCase() + profile.bodyShape.slice(1),
@@ -249,6 +294,12 @@ function buildExplanation(
   const productRows = [
     { label: 'Fit', value: `${FIT_CLASS_LABEL[product.fitClass]} fit` },
     { label: 'Brand sizing', value: product.brandSizing?.label ?? 'True to size' },
+    {
+      label: 'Observed fit history',
+      value: `${history.label} · ${history.reviewCount} reviews${
+        history.outcomeCount > 0 ? `, ${history.outcomeCount} reported outcomes` : ''
+      }`,
+    },
   ];
 
   // Only the factors that actually shifted the answer are listed. A factor
@@ -275,11 +326,16 @@ function buildExplanation(
     });
   }
 
-  const brandEase = product.brandSizing?.ease ?? 0;
-  if (brandEase !== 0) {
+  // The correction actually applied, which is the published label pulled
+  // toward what shoppers reported — not the label on its own.
+  const brandEase = history.appliedEase;
+  if (Math.abs(brandEase) >= 0.05) {
     adjustments.push({
-      label: 'Brand sizing',
-      value: product.brandSizing!.label,
+      label: history.shiftedByOutcomes ? 'Brand sizing (updated by fit reports)' : 'Brand sizing',
+      value:
+        history.label === 'Not enough fit history yet'
+          ? (product.brandSizing?.label ?? 'True to size')
+          : history.label[0].toUpperCase() + history.label.slice(1),
       direction: brandEase < 0 ? 'up' : 'down',
       contribution: -brandEase,
     });

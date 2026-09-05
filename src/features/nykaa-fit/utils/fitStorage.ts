@@ -18,16 +18,36 @@ type Listener = () => void;
 let cache: FitProfile | null | undefined;
 const listeners = new Set<Listener>();
 
+/**
+ * Reads and, where needed, migrates.
+ *
+ * The first build stored height + weight with no `method`. Those profiles are
+ * still perfectly usable — they are exactly the estimated path — so they are
+ * upgraded in place rather than thrown away and re-asked for. Anything that
+ * satisfies neither branch is dropped.
+ */
+export function migrateProfile(raw: unknown): FitProfile | null {
+  const p = raw as Partial<FitProfile> | null;
+  if (!p || typeof p.heightCm !== 'number') return null;
+
+  const hasMeasurements =
+    p.measurements != null &&
+    typeof p.measurements.bust === 'number' &&
+    typeof p.measurements.waist === 'number' &&
+    typeof p.measurements.hip === 'number';
+
+  if (p.method === 'measured' && hasMeasurements) return p as FitProfile;
+  if (typeof p.weightKg !== 'number') return null;
+
+  // Either an explicitly estimated profile, or a pre-`method` record.
+  return { ...(p as FitProfile), method: 'estimated' };
+}
+
 function read(): FitProfile | null {
   try {
     const raw = window.localStorage.getItem(STORAGE_KEY);
     if (!raw) return null;
-    const parsed = JSON.parse(raw) as FitProfile;
-    // Guard against a stale shape from an older build.
-    if (typeof parsed?.heightCm !== 'number' || typeof parsed?.weightKg !== 'number') {
-      return null;
-    }
-    return parsed;
+    return migrateProfile(JSON.parse(raw));
   } catch {
     return null;
   }

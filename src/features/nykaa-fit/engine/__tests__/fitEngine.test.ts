@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { FitProductInput, FitProfile, PreferredFit } from '../../types/fitTypes';
 import { recommendSize } from '../fitEngine';
-import { estimateBody, girthIndex } from '../bodyModel';
+import { bodyFor, estimateBody, girthIndex } from '../bodyModel';
 
 /* =========================================================================
    Recommendation engine tests.
@@ -32,8 +32,10 @@ function product(overrides: Partial<FitProductInput> = {}): FitProductInput {
   };
 }
 
+/** The fallback path: height and weight, no tape measure. */
 function profile(overrides: Partial<FitProfile> = {}): FitProfile {
   return {
+    method: 'estimated',
     heightCm: 165,
     weightKg: 60,
     gender: 'female',
@@ -41,6 +43,35 @@ function profile(overrides: Partial<FitProfile> = {}): FitProfile {
     createdAt: 0,
     updatedAt: 0,
     ...overrides,
+  };
+}
+
+/** The primary path: real bust, waist and hip. */
+function measured(
+  measurements: { bust: number; waist: number; hip: number },
+  overrides: Partial<FitProfile> = {},
+): FitProfile {
+  return {
+    method: 'measured',
+    heightCm: 165,
+    measurements,
+    gender: 'female',
+    preferredFit: 'regular',
+    createdAt: 0,
+    updatedAt: 0,
+    ...overrides,
+  };
+}
+
+/** The girth model's own input shape — the estimated branch of a profile. */
+function estimateInput(overrides: Partial<FitProfile> = {}) {
+  const p = profile(overrides);
+  return {
+    heightCm: p.heightCm,
+    weightKg: p.weightKg!,
+    gender: p.gender,
+    age: p.age,
+    bodyShape: p.bodyShape,
   };
 }
 
@@ -55,16 +86,16 @@ describe('body model', () => {
   });
 
   it('produces larger measurements for a heavier body at the same height', () => {
-    const light = estimateBody(profile({ heightCm: 165, weightKg: 50 }));
-    const heavy = estimateBody(profile({ heightCm: 165, weightKg: 80 }));
+    const light = estimateBody(estimateInput({ heightCm: 165, weightKg: 50 }));
+    const heavy = estimateBody(estimateInput({ heightCm: 165, weightKg: 80 }));
     expect(heavy.bust).toBeGreaterThan(light.bust);
     expect(heavy.waist).toBeGreaterThan(light.waist);
     expect(heavy.hip).toBeGreaterThan(light.hip);
   });
 
   it('applies optional body shape without requiring it', () => {
-    const base = estimateBody(profile());
-    const hourglass = estimateBody(profile({ bodyShape: 'hourglass' }));
+    const base = estimateBody(estimateInput());
+    const hourglass = estimateBody(estimateInput({ bodyShape: 'hourglass' }));
     expect(hourglass.waist).toBeLessThan(base.waist);
     expect(hourglass.hip).toBeGreaterThan(base.hip);
   });
@@ -275,6 +306,8 @@ describe('recommendSize', () => {
     expect(profileLabels).toContain('Height');
     expect(profileLabels).toContain('Weight');
     expect(profileLabels).toContain('Preferred fit');
+    // The estimated path must say so in the explanation, not just internally.
+    expect(profileLabels).toContain('Measurements');
 
     const productLabels = result.explanation.product.map((r) => r.label);
     expect(productLabels).toContain('Fit');
@@ -306,5 +339,138 @@ describe('recommendSize', () => {
         .distance - between.assessments.find((a) => a.size === between.recommendedSize)!.distance,
     );
     expect(between.betweenSizes).toBe(gap < 0.15);
+  });
+});
+
+
+/* =========================================================================
+   The measurement-first path.
+
+   A measurement means the same thing in every brand and a size label does
+   not — which is the entire argument for asking for one. These tests hold
+   the engine to that: measured numbers are used verbatim, and the estimated
+   path is visibly and permanently the weaker of the two.
+   ========================================================================= */
+
+describe('measured profiles', () => {
+  it('uses the given measurements verbatim rather than estimating', () => {
+    const body = bodyFor(measured({ bust: 36.5, waist: 30.5, hip: 39 }));
+    expect(body).toEqual({ bust: 36.5, waist: 30.5, hip: 39 });
+  });
+
+  it('ignores weight and body shape when measurements are present', () => {
+    const a = bodyFor(measured({ bust: 34, waist: 28, hip: 38 }));
+    const b = bodyFor(
+      measured({ bust: 34, waist: 28, hip: 38 }, { weightKg: 95, bodyShape: 'apple' }),
+    );
+    expect(b).toEqual(a);
+  });
+
+  it('still estimates when no measurements were given', () => {
+    const body = bodyFor(profile());
+    expect(body.bust).toBeGreaterThan(30);
+    expect(body).not.toEqual({ bust: 0, waist: 0, hip: 0 });
+  });
+
+  it('recommends the size the brand cuts for that exact body', () => {
+    // The test chart cuts M for 36/30/38.5.
+    const result = recommendSize(measured({ bust: 36, waist: 30, hip: 38.5 }), product())!;
+    expect(result.recommendedSize).toBe('M');
+    expect(result.confidence.withheld).toBe(false);
+  });
+
+  it('caps the estimated path below the measured one, all else equal', () => {
+    // Same body, described two ways: once measured, once left to the model.
+    const estimatedBody = bodyFor(profile());
+    const asMeasured = measured(estimatedBody);
+
+    const est = recommendSize(profile(), product())!;
+    const meas = recommendSize(asMeasured, product())!;
+
+    // Identical arithmetic underneath...
+    expect(meas.recommendedSize).toBe(est.recommendedSize);
+    expect(meas.confidence.score).toBeCloseTo(est.confidence.score, 6);
+
+    // ...but the estimated path can never be reported as high confidence.
+    expect(est.confidence.level).not.toBe('high');
+    expect(est.confidence.components.input).toBeLessThan(
+      meas.confidence.components.input,
+    );
+  });
+
+  it('tells an estimated shopper exactly how to get a better answer', () => {
+    const capped = recommendSize(measured({ bust: 36, waist: 30, hip: 38.5 }), product())!;
+    expect(capped.confidence.level).toBe('high');
+
+    const est = recommendSize(
+      { ...profile(), method: 'estimated', weightKg: 60 },
+      product(),
+    )!;
+    if (est.confidence.cappedByEstimate) {
+      expect(est.confidence.limitingFactor).toMatch(/bust, waist and hip/);
+    }
+  });
+});
+
+/* =========================================================================
+   Withholding.
+
+   The deck claims the recommender declines to answer below a confidence
+   threshold. That claim is only worth making if it is reachable, so these
+   tests construct the case it describes and check that no size comes back.
+   ========================================================================= */
+
+describe('confidence and withholding', () => {
+  const THIN_HISTORY = { brand: 'Brand With No History' };
+
+  it('withholds when the shopper sits between two sizes on a thin-history brand', () => {
+    // Exactly halfway between the S (34/28/36.5) and M (36/30/38.5) blocks.
+    const between = measured({ bust: 35, waist: 29, hip: 37.5 });
+    const result = recommendSize(between, product(THIN_HISTORY))!;
+
+    expect(result.confidence.components.separation).toBeLessThan(0.2);
+    expect(result.confidence.withheld).toBe(true);
+    expect(result.confidence.level).toBe('low');
+    expect(result.summary).toMatch(/not confident enough/i);
+    expect(result.summary).toMatch(/size chart/i);
+  });
+
+  it('names the reason it is withholding', () => {
+    const between = measured({ bust: 35, waist: 29, hip: 37.5 });
+    const result = recommendSize(between, product(THIN_HISTORY))!;
+    expect(result.confidence.limitingFactor).toMatch(/between two sizes/i);
+  });
+
+  it('does not withhold when the body sits squarely on one size', () => {
+    const onSize = measured({ bust: 36, waist: 30, hip: 38.5 });
+    const result = recommendSize(onSize, product(THIN_HISTORY))!;
+    expect(result.confidence.withheld).toBe(false);
+    expect(result.summary).not.toMatch(/not confident enough/i);
+  });
+
+  it('keeps the withheld size internally so the Fit Lab can inspect it', () => {
+    const between = measured({ bust: 35, waist: 29, hip: 37.5 });
+    const result = recommendSize(between, product(THIN_HISTORY))!;
+    // The UI must not show this, but throwing it away would make the
+    // withholding decision unauditable.
+    expect(['S', 'M']).toContain(result.recommendedSize);
+  });
+
+  it('lowers confidence when the recommended size had to be substituted', () => {
+    const me = measured({ bust: 36, waist: 30, hip: 38.5 });
+    const clean = recommendSize(me, product())!;
+    const substituted = recommendSize(me, product({ soldOutSizes: ['M'] }))!;
+    expect(substituted.substitution).not.toBeNull();
+    expect(substituted.confidence.score).toBeLessThan(clean.confidence.score);
+  });
+
+  it('never reports a confidence level outside the three bands', () => {
+    [40, 50, 60, 70, 85, 100].forEach((weightKg) => {
+      const result = recommendSize(profile({ weightKg }), product())!;
+      expect(['high', 'medium', 'low']).toContain(result.confidence.level);
+      expect(result.confidence.score).toBeGreaterThanOrEqual(0);
+      expect(result.confidence.score).toBeLessThanOrEqual(1);
+      expect(result.confidence.withheld).toBe(result.confidence.level === 'low');
+    });
   });
 });

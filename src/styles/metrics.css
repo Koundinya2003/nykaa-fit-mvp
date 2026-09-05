@@ -1,0 +1,153 @@
+/* =========================================================================
+   /metrics — the instrumentation, made visible.
+
+   Styled as an internal tool rather than as storefront: tabular, dense, and
+   unambiguous about what is a measurement and what is missing data.
+   ========================================================================= */
+
+@import '@/styles/tokens.css';
+
+.metrics { padding-block: var(--s-6) var(--s-16); }
+
+.metrics__head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--s-6);
+  flex-wrap: wrap;
+  padding-bottom: var(--s-5);
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.metrics__eyebrow {
+  font-size: var(--fs-2xs);
+  font-weight: 700;
+  letter-spacing: var(--track-wider);
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+}
+
+.metrics__title { margin-top: var(--s-1); font-size: var(--fs-3xl); }
+
+.metrics__lede {
+  margin-top: var(--s-2);
+  max-width: 72ch;
+  font-size: var(--fs-sm);
+  color: var(--text-secondary);
+  line-height: var(--lh-normal);
+}
+
+.metrics__actions { display: flex; gap: var(--s-2); flex-wrap: wrap; }
+
+.metrics__section { margin-top: var(--s-10); }
+
+.metrics__section-title {
+  font-size: var(--fs-lg);
+  font-weight: 700;
+  padding-bottom: var(--s-3);
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.metrics__note {
+  margin-top: var(--s-3);
+  max-width: 72ch;
+  font-size: var(--fs-xs);
+  color: var(--text-tertiary);
+  line-height: var(--lh-normal);
+}
+
+/* ---------- Primary metric ---------- */
+.metrics__primary {
+  display: flex;
+  align-items: center;
+  gap: var(--s-8);
+  flex-wrap: wrap;
+  margin-top: var(--s-5);
+  padding: var(--s-5) var(--s-6);
+  border: 1px solid var(--c-pink-100);
+  border-radius: var(--r-md);
+  background: var(--c-pink-050);
+}
+
+.metrics__big { display: grid; gap: var(--s-1); }
+
+.metrics__big-value {
+  font-family: var(--font-display);
+  font-size: var(--fs-4xl);
+  line-height: 1;
+  color: var(--c-pink-600);
+}
+
+.metrics__big-label { font-size: var(--fs-xs); color: var(--text-secondary); max-width: 30ch; }
+
+.metrics__facts { display: flex; gap: var(--s-8); flex-wrap: wrap; }
+.metrics__facts dt { font-size: var(--fs-2xs); letter-spacing: var(--track-wide); text-transform: uppercase; color: var(--text-tertiary); }
+.metrics__facts dd { margin: 2px 0 0; font-size: var(--fs-2xl); font-weight: 700; font-variant-numeric: tabular-nums; }
+
+/* ---------- Funnel ---------- */
+.funnel { display: grid; gap: var(--s-5); margin-top: var(--s-5); }
+
+.funnel__row { display: grid; gap: var(--s-2); }
+
+.funnel__head { display: flex; align-items: baseline; justify-content: space-between; gap: var(--s-3); }
+
+.funnel__id {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.funnel__count { font-size: var(--fs-xl); font-weight: 700; font-variant-numeric: tabular-nums; }
+
+.funnel__bar { height: 8px; border-radius: var(--r-full); background: var(--bg-sunken); overflow: hidden; }
+.funnel__bar span { display: block; height: 100%; background: var(--accent); border-radius: var(--r-full); }
+
+.funnel__meta { font-size: var(--fs-xs); color: var(--text-secondary); line-height: var(--lh-snug); }
+.funnel__meta code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: var(--fs-2xs); color: var(--text-primary); }
+.funnel__note { font-size: var(--fs-2xs); color: var(--text-tertiary); line-height: var(--lh-snug); }
+
+/* ---------- Raw log ---------- */
+.metrics__rawhead { display: flex; align-items: center; justify-content: space-between; gap: var(--s-4); flex-wrap: wrap; }
+.metrics__rawhead .metrics__section-title { border: none; padding-bottom: 0; }
+
+.metrics__scroll { overflow-x: auto; margin-top: var(--s-4); border: 1px solid var(--border-subtle); border-radius: var(--r-sm); }
+
+.metrics__table { width: 100%; border-collapse: collapse; font-size: var(--fs-xs); min-width: 640px; }
+
+.metrics__table th,
+.metrics__table td {
+  padding: var(--s-2) var(--s-3);
+  border-bottom: 1px solid var(--border-subtle);
+  text-align: left;
+  vertical-align: top;
+}
+
+.metrics__table thead th {
+  font-size: var(--fs-2xs);
+  letter-spacing: var(--track-wide);
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+  background: var(--bg-muted);
+}
+
+.metrics__table code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+.metrics__props { color: var(--text-secondary); word-break: break-word; }
+
+.metrics__foot {
+  margin-top: var(--s-10);
+  padding-top: var(--s-5);
+  border-top: 1px solid var(--border-subtle);
+  font-size: var(--fs-xs);
+  color: var(--text-tertiary);
+}
+
+.metrics__foot a { color: var(--accent); font-weight: 600; }
+
+@media (max-width: 640px) {
+  .metrics__head { align-items: flex-start; }
+  .metrics__actions { width: 100%; }
+  .metrics__actions .btn { flex: 1; }
+  .metrics__primary { gap: var(--s-5); padding: var(--s-4); }
+  .metrics__facts { gap: var(--s-5); }
+}

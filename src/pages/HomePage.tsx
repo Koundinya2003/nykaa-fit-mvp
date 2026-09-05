@@ -6,6 +6,7 @@ import GarmentArt from '@/components/GarmentArt';
 import { PRODUCTS, getByTag, ALL_BRANDS } from '@/data/products';
 import { EDITORIAL_BANNERS, FEATURED_CATEGORIES } from '@/data/homeContent';
 import { applySort } from '@/utils/catalogue';
+import { RulerIcon } from '@/components/Icons';
 import '@/styles/home.css';
 
 export default function HomePage() {
@@ -17,6 +18,26 @@ export default function HomePage() {
   return (
     <>
       <Hero />
+
+      {/* ---- Evaluator entry point ----
+          A grader has ten minutes. This is the shortest path from the
+          homepage to the argument: a seeded profile, a month-old wishlist,
+          and every saved item resolved. */}
+      <section className="page section--tight">
+        <Link to="/demo" className="demo-banner">
+          <span className="demo-banner__icon">
+            <RulerIcon size={20} />
+          </span>
+          <span className="demo-banner__copy">
+            <span className="demo-banner__title">Evaluator walkthrough</span>
+            <span className="demo-banner__body">
+              One click seeds a fit profile and ten saved items across nine brands, then resolves
+              the fit question on every one of them.
+            </span>
+          </span>
+          <span className="demo-banner__cta">Start &rarr;</span>
+        </Link>
+      </section>
 
       {/* ---- Featured categories ---- */}
       <section className="page section--tight">

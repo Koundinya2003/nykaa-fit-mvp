@@ -1,0 +1,293 @@
+/* =========================================================================
+   Wishlist — the page the whole feature exists to serve.
+
+   Laid out around a single question per item ("can I buy this yet?") rather
+   than around the product grid it used to be. Mobile-first: the card is a
+   single column below 640px and never scrolls the page sideways.
+   ========================================================================= */
+
+@import '@/styles/tokens.css';
+
+.wishlist { padding-block: var(--s-6) var(--s-16); }
+
+/* ---------- Head ---------- */
+.wl-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--s-6);
+  flex-wrap: wrap;
+  padding-bottom: var(--s-5);
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.wl-head__title { font-size: var(--fs-3xl); }
+
+.wl-head__tagline {
+  margin-top: var(--s-1);
+  font-size: var(--fs-sm);
+  color: var(--text-secondary);
+}
+
+.wl-head__action { display: grid; gap: var(--s-2); justify-items: flex-end; }
+
+.wl-resolve {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-2);
+}
+
+.wl-resolve__sub,
+.wl-resolve__done {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: var(--fs-xs);
+  color: var(--text-tertiary);
+}
+
+.wl-resolve__done { color: var(--c-success); font-weight: 600; }
+
+/* ---------- Empty-profile prompt ---------- */
+.wl-prompt {
+  margin-top: var(--s-6);
+  padding: var(--s-6);
+  border: 1px solid var(--c-pink-100);
+  border-radius: var(--r-md);
+  background: var(--c-pink-050);
+}
+
+.wl-prompt__eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--fs-2xs);
+  font-weight: 700;
+  letter-spacing: var(--track-wider);
+  text-transform: uppercase;
+  color: var(--c-pink-600);
+}
+
+.wl-prompt__title {
+  margin-top: var(--s-2);
+  font-family: var(--font-display);
+  font-size: var(--fs-2xl);
+  line-height: var(--lh-tight);
+}
+
+.wl-prompt__body {
+  margin-top: var(--s-3);
+  max-width: 62ch;
+  font-size: var(--fs-base);
+  color: var(--text-secondary);
+  line-height: var(--lh-normal);
+}
+
+.wl-prompt__actions { display: flex; gap: var(--s-3); margin-top: var(--s-5); flex-wrap: wrap; }
+
+.wl-hint {
+  margin-top: var(--s-5);
+  padding: var(--s-3) var(--s-4);
+  border-left: 2px solid var(--accent);
+  background: var(--bg-muted);
+  font-size: var(--fs-sm);
+  color: var(--text-secondary);
+}
+
+.wl-hint--upgrade { border-left-color: var(--c-warning); }
+.wl-hint--upgrade a { color: var(--accent); font-weight: 600; }
+
+.wl-empty-demo {
+  margin-top: var(--s-4);
+  text-align: center;
+  font-size: var(--fs-sm);
+  color: var(--text-tertiary);
+}
+
+.wl-empty-demo a { color: var(--accent); font-weight: 600; }
+
+/* ---------- Groups ---------- */
+.wl-groups { display: grid; gap: var(--s-10); margin-top: var(--s-8); }
+
+.wl-groups.is-resolving { opacity: 0.55; transition: opacity var(--dur) var(--ease); }
+
+.wl-group__head { padding-bottom: var(--s-3); border-bottom: 1px solid var(--border-subtle); }
+
+.wl-group__title {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  font-size: var(--fs-lg);
+  font-weight: 700;
+  line-height: var(--lh-snug);
+}
+
+.wl-group__count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 24px;
+  height: 24px;
+  padding-inline: 7px;
+  border-radius: var(--r-full);
+  background: var(--bg-sunken);
+  font-size: var(--fs-xs);
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.wl-group--ready .wl-group__count { background: var(--c-success-bg); color: var(--c-success); }
+.wl-group--decide .wl-group__count { background: var(--c-warning-bg); color: var(--c-warning); }
+
+.wl-group__blurb {
+  margin-top: var(--s-1);
+  max-width: 70ch;
+  font-size: var(--fs-sm);
+  color: var(--text-secondary);
+}
+
+.wl-group__items {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--s-4);
+  margin-top: var(--s-5);
+}
+
+/* ---------- Card ---------- */
+.wl-card {
+  display: flex;
+  gap: var(--s-4);
+  padding: var(--s-4);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--r-md);
+  background: var(--bg-page);
+  min-width: 0;
+}
+
+.wl-card--ready { border-left: 3px solid var(--c-success); }
+.wl-card--decide { border-left: 3px solid var(--c-warning); }
+.wl-card--blocked { border-left: 3px solid var(--c-ink-300); }
+
+.wl-card__thumb {
+  flex: 0 0 96px;
+  width: 96px;
+  aspect-ratio: 3 / 4;
+  border-radius: var(--r-sm);
+  overflow: hidden;
+  background: var(--bg-muted);
+}
+
+.wl-card__thumb :is(img, svg) { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+.wl-card__body { flex: 1; min-width: 0; display: grid; gap: var(--s-3); align-content: start; }
+
+.wl-card__headline { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--s-2); }
+.wl-card__ident { min-width: 0; }
+
+.wl-card__brand {
+  font-size: var(--fs-2xs);
+  font-weight: 700;
+  letter-spacing: var(--track-wide);
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+}
+
+.wl-card__name {
+  display: block;
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  line-height: var(--lh-snug);
+  color: var(--text-primary);
+}
+
+.wl-card__name:hover { color: var(--accent); }
+
+.wl-card__price {
+  margin-top: 2px;
+  display: flex;
+  align-items: baseline;
+  gap: var(--s-2);
+  flex-wrap: wrap;
+  font-size: var(--fs-sm);
+  font-weight: 700;
+}
+
+.wl-card__mrp { font-weight: 400; font-size: var(--fs-xs); color: var(--text-tertiary); text-decoration: line-through; }
+.wl-card__off { font-size: var(--fs-xs); font-weight: 700; color: var(--c-success); }
+
+/* ---- the fit answer ---- */
+.wl-card__fit {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  padding: var(--s-3);
+  border-radius: var(--r-sm);
+  background: var(--bg-muted);
+}
+
+.wl-card__size {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  height: 44px;
+  padding-inline: var(--s-2);
+  border-radius: var(--r-sm);
+  background: var(--c-ink-900);
+  color: var(--c-white);
+  font-size: var(--fs-lg);
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.wl-card__size--none { background: var(--bg-sunken); color: var(--text-tertiary); }
+
+.wl-card__fitcopy { min-width: 0; display: grid; gap: 4px; justify-items: start; }
+
+.wl-card__fitlabel {
+  font-size: var(--fs-2xs);
+  font-weight: 700;
+  letter-spacing: var(--track-wide);
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+}
+
+.wl-card__stock { font-size: var(--fs-xs); line-height: var(--lh-snug); }
+.wl-card__stock.is-in { color: var(--c-success); font-weight: 600; }
+.wl-card__stock.is-out { color: var(--text-secondary); }
+
+.wl-card__foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-3);
+  flex-wrap: wrap;
+  padding-top: var(--s-3);
+  border-top: 1px solid var(--border-subtle);
+}
+
+.wl-card__saved { font-size: var(--fs-2xs); color: var(--text-tertiary); }
+.wl-card__saved.is-urgent { color: var(--c-warning); font-weight: 600; }
+.wl-card__saved.is-lapsed { color: var(--c-danger); font-weight: 600; }
+
+.wl-card__cta { flex-shrink: 0; }
+
+/* ---------- Responsive ---------- */
+@media (max-width: 1024px) {
+  .wl-group__items { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 640px) {
+  .wl-head { align-items: flex-start; gap: var(--s-4); }
+  .wl-head__action { width: 100%; justify-items: stretch; }
+  .wl-resolve { width: 100%; justify-content: center; }
+  .wl-resolve__sub, .wl-resolve__done { justify-content: flex-start; }
+
+  .wl-prompt { padding: var(--s-5) var(--s-4); }
+  .wl-prompt__actions .btn { flex: 1; }
+
+  .wl-card { padding: var(--s-3); gap: var(--s-3); }
+  .wl-card__thumb { flex-basis: 72px; width: 72px; }
+  .wl-card__foot { flex-direction: column; align-items: stretch; }
+  .wl-card__cta { width: 100%; justify-content: center; }
+}

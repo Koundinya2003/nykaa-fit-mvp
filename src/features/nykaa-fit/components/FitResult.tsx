@@ -2,6 +2,7 @@ import { useState } from 'react';
 import type { Product } from '@/types';
 import type { FitProfile, FitRecommendation } from '../types/fitTypes';
 import FitMatch from './FitMatch';
+import ConfidenceChip from './ConfidenceChip';
 import SizeComparison from './SizeComparison';
 import FitAcrossProducts from './FitAcrossProducts';
 import HowThisWorks from './HowThisWorks';
@@ -19,6 +20,8 @@ interface Props {
   onSelect: (size: string) => void;
   onEditProfile: () => void;
   onNavigateAway: () => void;
+  /** Opens the brand's published size chart — the fallback when we withhold. */
+  onOpenSizeChart: () => void;
 }
 
 export default function FitResult({
@@ -30,6 +33,7 @@ export default function FitResult({
   onSelect,
   onEditProfile,
   onNavigateAway,
+  onOpenSizeChart,
 }: Props) {
   const [showWhy, setShowWhy] = useState(false);
   const [showCompare, setShowCompare] = useState(false);
@@ -41,44 +45,81 @@ export default function FitResult({
     summary,
     explanation,
     substitution,
+    confidence,
   } = recommendation;
+
+  const withheld = confidence.withheld;
 
   return (
     <div className="fit-result">
-      <p className="fit-result__eyebrow">Your recommended size</p>
+      {withheld ? (
+        <>
+          <p className="fit-result__eyebrow">No size recommendation</p>
+          <div className="fit-result__hero fit-result__hero--withheld">
+            <span className="fit-result__size fit-result__size--withheld" aria-hidden>
+              ?
+            </span>
+            <p className="fit-result__basis">
+              We are not confident enough to name a size on this product.
+            </p>
+          </div>
 
-      <div className="fit-result__hero">
-        <span className="fit-result__size">{recommendedSize}</span>
-        <p className="fit-result__basis">
-          Based on your profile and this product&rsquo;s fit
-        </p>
-        {fromSavedProfile && (
-          <p className="fit-result__source">Using your saved fit profile</p>
-        )}
-      </div>
+          <ConfidenceChip confidence={confidence} variant="full" />
 
-      <FitMatch quality={matchQuality} hint={sizingHint} />
+          <p className="fit-result__summary">{summary}</p>
 
-      {substitution && (
-        <p className="fit-result__notice" role="status">
-          {substitution.reason}
-        </p>
+          <button
+            type="button"
+            className="btn btn--accent btn--block fit-result__cta"
+            onClick={onOpenSizeChart}
+          >
+            Open {product.brand}&rsquo;s size chart
+          </button>
+
+          <p className="fit-result__manual">
+            Every size stays selectable. Withholding a recommendation is deliberate: a wrong size
+            costs you a return, and on this combination we do not know enough to be useful.
+          </p>
+        </>
+      ) : (
+        <>
+          <p className="fit-result__eyebrow">Your recommended size</p>
+
+          <div className="fit-result__hero">
+            <span className="fit-result__size">{recommendedSize}</span>
+            <p className="fit-result__basis">
+              Based on your profile and this product&rsquo;s fit
+            </p>
+            {fromSavedProfile && (
+              <p className="fit-result__source">Using your saved fit profile</p>
+            )}
+          </div>
+
+          <FitMatch quality={matchQuality} hint={sizingHint} />
+          <ConfidenceChip confidence={confidence} variant="full" />
+
+          {substitution && (
+            <p className="fit-result__notice" role="status">
+              {substitution.reason}
+            </p>
+          )}
+
+          <p className="fit-result__summary">{summary}</p>
+
+          <button
+            type="button"
+            className="btn btn--accent btn--block fit-result__cta"
+            onClick={() => onSelect(recommendedSize)}
+            disabled={!selectable}
+          >
+            {selectable ? `Select ${recommendedSize}` : `${recommendedSize} is out of stock`}
+          </button>
+
+          <p className="fit-result__manual">
+            You can still pick any other size — this is a suggestion, not a restriction.
+          </p>
+        </>
       )}
-
-      <p className="fit-result__summary">{summary}</p>
-
-      <button
-        type="button"
-        className="btn btn--accent btn--block fit-result__cta"
-        onClick={() => onSelect(recommendedSize)}
-        disabled={!selectable}
-      >
-        {selectable ? `Select ${recommendedSize}` : `${recommendedSize} is out of stock`}
-      </button>
-
-      <p className="fit-result__manual">
-        You can still pick any other size — this is a suggestion, not a restriction.
-      </p>
 
       {/* ---- Why we recommend ---- */}
       <section className={`fit-why ${showWhy ? 'is-open' : ''}`}>
@@ -88,7 +129,7 @@ export default function FitResult({
           aria-expanded={showWhy}
           onClick={() => setShowWhy((s) => !s)}
         >
-          <span>Why we recommend {recommendedSize}</span>
+          <span>{withheld ? 'What we do and do not know' : `Why we recommend ${recommendedSize}`}</span>
           <ChevronDown size={18} className="fit-why__chev" />
         </button>
 
@@ -171,7 +212,7 @@ export default function FitResult({
       <FitAcrossProducts
         profile={profile}
         currentProduct={product}
-        currentSize={recommendedSize}
+        currentSize={withheld ? null : recommendedSize}
         onNavigate={onNavigateAway}
       />
 

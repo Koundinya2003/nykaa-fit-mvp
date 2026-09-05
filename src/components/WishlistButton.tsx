@@ -5,7 +5,7 @@ import '@/styles/product.css';
 
 interface Props {
   product: Product;
-  variant?: 'floating' | 'inline';
+  variant?: 'floating' | 'inline' | 'icon';
   className?: string;
 }
 

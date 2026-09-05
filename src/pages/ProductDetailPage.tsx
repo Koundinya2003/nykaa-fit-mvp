@@ -213,6 +213,7 @@ export default function ProductDetailPage() {
               viewKey={viewKey}
               selectedSize={size}
               onSelectSize={handleSelectSize}
+              onOpenSizeChart={() => setChartOpen(true)}
             />
           </div>
 

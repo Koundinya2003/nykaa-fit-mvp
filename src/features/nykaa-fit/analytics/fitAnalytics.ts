@@ -24,7 +24,19 @@ export type FitEventName =
   | 'size_selected'
   | 'add_to_bag'
   | 'checkout_started'
-  | 'purchase';
+  | 'purchase'
+  /* ---- wishlist ---- */
+  | 'wishlist_viewed'
+  | 'wishlist_item_saved'
+  /** One saved item run through the recommender. */
+  | 'wishlist_item_resolved'
+  /** The single wishlist-level action, fired once per pass. */
+  | 'wishlist_resolve_all'
+  | 'wishlist_add_to_bag'
+  /* ---- post-purchase ---- */
+  /** Kept or returned, with a reason. The only event that tells us whether
+   *  the recommendation was actually right. */
+  | 'fit_outcome_reported';
 
 export interface FitEventProps {
   product_id?: string;
@@ -51,6 +63,22 @@ export interface FitEventProps {
   quantity?: number;
   order_id?: string;
   reason?: string;
+  /** 'measured' or 'estimated' — which input path produced the profile. */
+  input_method?: string;
+  /** 'high' | 'medium' | 'low'. */
+  confidence_level?: string;
+  /** True when the confidence model declined to name a size. */
+  withheld?: boolean;
+  /** Wishlist: which bucket the item landed in after resolution. */
+  wishlist_group?: string;
+  /** Wishlist: how long the item had been saved, in whole days. */
+  days_saved?: number;
+  /** Wishlist: number of items in a resolve-all pass. */
+  item_count?: number;
+  /** Post-purchase: 'kept' or 'returned'. */
+  outcome?: string;
+  /** Whether the recommended size was in stock at the time. */
+  in_stock?: boolean;
 }
 
 export interface AnalyticsEvent {
@@ -505,4 +533,177 @@ export function sizeSourceSplit(events: AnalyticsEvent[], group?: string) {
     (e) => e.props.recommended_size && e.props.recommended_size === e.props.selected_size,
   ).length;
   return { total: scoped.length, recommended, manual, matchedRecommendation };
+}
+
+
+/* =========================================================================
+   Canonical success metrics.
+
+   The events above are named for the surface that emits them, which is what
+   makes them easy to reason about in code and hopeless to put on a slide.
+   This layer maps them onto the nine metric names the success criteria are
+   actually written in, so /metrics can show that every metric claimed on the
+   deck is instrumented — and show exactly which raw event backs it.
+
+   Nothing is recomputed or estimated here. Each row is a filter over events
+   this browser genuinely recorded.
+   ========================================================================= */
+
+export interface MetricSpec {
+  /** The name as written on the success slide. */
+  id: string;
+  label: string;
+  /** The raw event(s) it counts. */
+  sources: FitEventName[];
+  /** Extra filter, where the metric is a subset of its event. */
+  where?: (e: AnalyticsEvent) => boolean;
+  /** How the filter reads in English, shown next to the count. */
+  whereLabel?: string;
+  note: string;
+}
+
+export const METRIC_SPECS: MetricSpec[] = [
+  {
+    id: 'profile_started',
+    label: 'Profile started',
+    sources: ['fit_profile_started'],
+    note: 'Opened the four-question form.',
+  },
+  {
+    id: 'profile_completed',
+    label: 'Profile completed',
+    sources: ['fit_profile_completed'],
+    note: 'Saved a fit profile. Denominator for everything downstream.',
+  },
+  {
+    id: 'recommendation_shown',
+    label: 'Recommendation shown',
+    sources: ['fit_recommendation_shown'],
+    note: 'A size was displayed on a PDP. Withheld results are logged here too, flagged.',
+  },
+  {
+    id: 'recommendation_followed',
+    label: 'Recommendation followed',
+    sources: ['fit_recommendation_accepted'],
+    note: 'Applied the size we suggested rather than overriding it.',
+  },
+  {
+    id: 'size_selected',
+    label: 'Size selected',
+    sources: ['size_selected'],
+    note: 'Any size chosen, by hand or from a recommendation.',
+  },
+  {
+    id: 'added_to_bag',
+    label: 'Added to bag',
+    sources: ['add_to_bag', 'wishlist_add_to_bag'],
+    where: (e) => e.props.reason !== 'blocked_no_size',
+    whereLabel: 'excluding blocked attempts with no size chosen',
+    note: 'A real bag addition. The blocked-no-size case is a validation error, not a conversion.',
+  },
+  {
+    id: 'wishlist_item_resolved',
+    label: 'Wishlist item resolved',
+    sources: ['wishlist_item_resolved'],
+    note: 'A saved item run through the recommender — the primary-metric event.',
+  },
+  {
+    id: 'order_placed',
+    label: 'Order placed',
+    sources: ['purchase'],
+    note: 'One event per line, carrying order_id so returns can be joined back.',
+  },
+  {
+    id: 'return_reported',
+    label: 'Return reported',
+    sources: ['fit_outcome_reported'],
+    where: (e) => e.props.outcome === 'returned',
+    whereLabel: 'fit_outcome_reported where outcome = returned',
+    note: 'The economics metric. Feeds straight back into that brand\'s fit history.',
+  },
+];
+
+export interface MetricCount {
+  spec: MetricSpec;
+  count: number;
+  /** Distinct products the metric was reached on. */
+  products: number;
+}
+
+export function metricCounts(events: AnalyticsEvent[], group?: string): MetricCount[] {
+  const scoped = group ? events.filter((e) => e.experiment_group === group) : events;
+  return METRIC_SPECS.map((spec) => {
+    const matching = scoped.filter(
+      (e) =>
+        (spec.sources as string[]).includes(e.name) && (spec.where ? spec.where(e) : true),
+    );
+    return {
+      spec,
+      count: matching.length,
+      products: new Set(matching.map((e) => e.props.product_id).filter(Boolean)).size,
+    };
+  });
+}
+
+/* ---------- The metric the whole feature exists to move ---------- */
+
+export interface WishlistConversion {
+  /** Items saved to the wishlist and later bought, within the window. */
+  purchasedWithinWindow: number;
+  /** Items saved to the wishlist at all. */
+  saved: number;
+  resolved: number;
+  /** null until anything has been saved — never shown as 0%. */
+  rate: number | null;
+  /** Of the purchases, how many had been resolved by Nykaa Fit first. */
+  purchasedAfterResolve: number;
+  windowDays: number;
+}
+
+export const WISHLIST_WINDOW_DAYS = 30;
+
+/**
+ * The primary business metric, computed from this browser's own event log:
+ * the share of wishlisted items bought inside the window.
+ *
+ * `purchasedAfterResolve` is the interesting column, not the headline: it is
+ * the difference between items that had their fit question answered and items
+ * that did not.
+ */
+export function wishlistConversion(events: AnalyticsEvent[]): WishlistConversion {
+  const windowMs = WISHLIST_WINDOW_DAYS * 24 * 60 * 60 * 1000;
+
+  const savedAt = new Map<string, number>();
+  events
+    .filter((e) => e.name === 'wishlist_item_saved' && e.props.product_id)
+    .forEach((e) => {
+      const id = e.props.product_id!;
+      if (!savedAt.has(id)) savedAt.set(id, e.ts);
+    });
+
+  const resolvedIds = new Set(
+    events
+      .filter((e) => e.name === 'wishlist_item_resolved' && e.props.product_id)
+      .map((e) => e.props.product_id!),
+  );
+
+  const purchases = events.filter((e) => e.name === 'purchase' && e.props.product_id);
+
+  const purchasedIds = new Set<string>();
+  purchases.forEach((e) => {
+    const id = e.props.product_id!;
+    const saved = savedAt.get(id);
+    if (saved !== undefined && e.ts - saved <= windowMs) purchasedIds.add(id);
+  });
+
+  const saved = savedAt.size;
+
+  return {
+    purchasedWithinWindow: purchasedIds.size,
+    saved,
+    resolved: resolvedIds.size,
+    rate: saved > 0 ? purchasedIds.size / saved : null,
+    purchasedAfterResolve: [...purchasedIds].filter((id) => resolvedIds.has(id)).length,
+    windowDays: WISHLIST_WINDOW_DAYS,
+  };
 }

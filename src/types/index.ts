@@ -155,6 +155,18 @@ export interface BagItem {
   addedAt: number;
 }
 
+/**
+ * A saved item.
+ *
+ * The timestamp is not decoration: the business metric this whole feature
+ * serves is the share of wishlisted items bought within 30 days of being
+ * saved, so the clock has to start somewhere and be visible to the shopper.
+ */
+export interface WishlistEntry {
+  productId: string;
+  addedAt: number;
+}
+
 export interface PriceSummary {
   itemCount: number;
   mrpTotal: number;

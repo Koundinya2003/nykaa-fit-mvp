@@ -1,0 +1,134 @@
+/* =========================================================================
+   "What to try" strip.
+
+   Sits directly under the header, above everything else, because an
+   evaluator with ten minutes should not have to hunt for the argument.
+   Deliberately slim and monochrome so it reads as chrome rather than as
+   another piece of merchandising.
+   ========================================================================= */
+
+@import '@/styles/tokens.css';
+
+.tour {
+  border-bottom: 1px solid var(--border-subtle);
+  background: var(--c-ink-900);
+  color: var(--c-white);
+}
+
+.tour__inner {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--s-5);
+  max-width: var(--page-max);
+  margin-inline: auto;
+  padding: var(--s-3) var(--page-gutter);
+  padding-right: calc(var(--page-gutter) + var(--s-6));
+}
+
+.tour__lead { display: grid; gap: 2px; flex-shrink: 0; }
+
+.tour__badge {
+  font-size: var(--fs-2xs);
+  font-weight: 700;
+  letter-spacing: var(--track-wider);
+  text-transform: uppercase;
+  color: var(--c-pink-400);
+}
+
+.tour__progress { font-size: var(--fs-2xs); color: var(--c-ink-400); }
+
+.tour__steps {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  flex: 1;
+  min-width: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.tour__steps::-webkit-scrollbar { display: none; }
+
+.tour__step { flex: 1 1 0; min-width: 150px; }
+
+.tour__link {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  padding: var(--s-2);
+  border-radius: var(--r-sm);
+  color: inherit;
+  transition: background var(--dur) var(--ease);
+}
+
+.tour__link:hover { background: rgba(255, 255, 255, 0.08); }
+
+.tour__marker {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border: 1px solid var(--c-ink-600);
+  border-radius: var(--r-full);
+  font-size: var(--fs-2xs);
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.tour__step.is-done .tour__marker {
+  border-color: var(--c-success);
+  background: var(--c-success);
+  color: var(--c-white);
+}
+
+.tour__copy { display: grid; gap: 1px; min-width: 0; }
+
+.tour__label {
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tour__step.is-done .tour__label { color: var(--c-ink-400); text-decoration: line-through; }
+
+.tour__detail {
+  font-size: 10px;
+  color: var(--c-ink-500);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tour__metrics {
+  flex-shrink: 0;
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  color: var(--c-pink-400);
+  white-space: nowrap;
+}
+
+.tour__metrics:hover { color: var(--c-white); }
+
+.tour__close {
+  position: absolute;
+  top: 50%;
+  right: calc(var(--page-gutter) - var(--s-2));
+  transform: translateY(-50%);
+  padding: var(--s-1);
+  color: var(--c-ink-400);
+}
+
+.tour__close:hover { color: var(--c-white); }
+
+@media (max-width: 900px) {
+  .tour__inner { flex-wrap: wrap; gap: var(--s-2); padding-block: var(--s-2); }
+  .tour__lead { flex-direction: row; align-items: baseline; gap: var(--s-2); }
+  .tour__steps { order: 3; flex-basis: 100%; }
+  .tour__step { flex: 0 0 auto; min-width: 0; }
+  .tour__detail { display: none; }
+  .tour__metrics { margin-left: auto; margin-right: var(--s-5); }
+}

@@ -12,10 +12,19 @@ product page, built to *reduce uncertainty before you buy*.
 Nothing in this build demonstrates that it does. The app's job is to emit the events an analysis
 would consume, and the Fit Lab reports "not enough data" rather than inventing a result.
 
+The business metric it serves: **the share of users who purchase at least one wishlisted item
+within 30 days of saving it.** The thesis is that a wishlist is a queue of unresolved questions,
+and the resolvable one is *"will this fit?"* — a price question answers itself when the sale
+lands, but fit uncertainty never resolves on its own.
+
 Store journey: **Home → Category → Listing → Product Detail → Size Selection → Add to Bag → Bag → Checkout**
 
-Nykaa Fit journey: **Product → Find My Fit → height, weight, gender, preferred fit → recommendation
-→ why → Select size → Add to Bag**
+Nykaa Fit journey: **Wishlist → Resolve fit for all saved items → per-item size, confidence and
+stock → Add to Bag**, or **Product → Find My Fit → bust, waist, hip, height → recommendation →
+why → Select size → Add to Bag**
+
+In a hurry? **[`/demo`](https://nykaa-fit-mvp.vercel.app/demo)** seeds a measured fit profile and
+a ten-item wishlist spanning nine brands, then lands on the wishlist with every item resolved.
 
 ## Running it
 
@@ -32,7 +41,7 @@ Then open <http://localhost:5173>.
 | `npm run build` | Type-checks (`tsc -b`) then builds to `dist/` |
 | `npm run preview` | Serves the production build |
 | `npm run typecheck` | Types only, no emit |
-| `npm test` | Unit tests (vitest) — engine, storage, analytics |
+| `npm test` | Unit tests (vitest) — engine, confidence, wishlist, brand history, analytics |
 
 ## Stack
 
@@ -50,10 +59,15 @@ Then open <http://localhost:5173>.
 | `/search?q=` | Search results |
 | `/p/:productId` | Product detail |
 | `/bag` | Shopping bag |
-| `/wishlist` | Wishlist |
-| `/checkout` | Order review + confirmation (no payment) |
-| `/fit-lab` | Internal: experiment bucket, metrics, raw event log |
+| `/wishlist` | Wishlist — per-item size, confidence, stock, and the resolve-all pass |
+| `/checkout` | Order review + confirmation, then the kept/returned prompt |
+| `/demo` | Seeds a fit profile plus a ten-item wishlist and lands on it resolved |
+| `/metrics` | The nine instrumented success metrics, with counts |
+| `/fit-lab` | Internal: experiment bucket, arm splits, raw event log |
 | `*` | Not found |
+
+Deep links work in production because `vercel.json` rewrites every path to `index.html`; without
+it a pasted product URL hits Vercel's 404 rather than the app.
 
 Listing pages also accept `?sub=`, `?gender=`, `?tag=`, `?brand=`, `?size=`, `?color=`,
 `?pmin=`/`?pmax=`, `?disc=`, `?rating=` and `?sort=`. Filter and sort state lives entirely
@@ -85,11 +99,15 @@ src/
 ```
 src/features/nykaa-fit/
   components/   FitBlock (orchestrator), FitCTA, FitProfileForm, FitResult,
-                FitProfileSummary, SizeComparison, FitPanel, FitConfidence
-  engine/       fitEngine, scoring, bodyModel   ← pure, no React, no network
+                FitProfileSummary, SizeComparison, FitPanel, ConfidenceChip,
+                FitAcrossProducts, WishlistFitCard, FitOutcomePrompt,
+                BrandFitHistoryPanel
+  engine/       fitEngine, scoring, bodyModel, confidence,
+                brandFitHistory              ← pure, no React, no network
   analytics/    fitAnalytics — pluggable sinks, localStorage by default
   experiment/   variant assignment + useVariant
-  utils/        fitStorage, eligibility, useFitProfile, useFitRecommendation
+  utils/        fitStorage, eligibility, wishlistFit, fitOutcomes,
+                fitResolutionStore, demoSeed, hooks
   types/        fitTypes
   styles/       nykaa-fit.css
 ```
@@ -100,48 +118,85 @@ control bucket render the existing PDP untouched.
 **How the recommendation works.** Deterministic and offline — no AI API, no model, no randomness.
 
 ```
-estimated body  (height, weight, gender, optional age / body shape)
+your body       measured bust / waist / hip, or estimated from height + weight
   + product fit class     slim +0.8″ · regular 0 · relaxed −0.8″ · oversized −1.6″
   + preferred fit         slim −0.7″ · regular 0 · relaxed +0.9″
-  + brand sizing          runs small / true to size / runs large
+  + brand sizing          the published label, shrunk toward what shoppers
+                          actually reported about that brand
   ────────────────────────────────────────────────────────────────
   = effective body → nearest size in *this brand's* chart
+  → then a confidence check that can decline to answer
 ```
 
-Body estimation uses a girth index, √(kg / m): approximating the torso as a cylinder of roughly
-constant density, circumference scales with the square root of mass over height. Coefficients are
-anchored to a stated reference body, so the behaviour is inspectable rather than magic. It is a
-transparent heuristic, presented as an estimate — never as a measurement.
+**Measurements are the primary input.** Bust, waist, hip and height, because a measurement means
+the same thing in every brand and a size label does not: 34″ is 34″ at Kazo and at W for Woman,
+whereas "Medium" is not. Height and weight remain as an explicit *"I don't know my measurements"*
+fallback, which estimates the three girths with a girth index, √(kg / m) — approximating the torso
+as a cylinder of roughly constant density, circumference scales with the square root of mass over
+height. That path is a proxy, so it is capped at medium confidence everywhere, and the wishlist's
+"Ready to buy" bucket is unreachable from it.
 
 Sizes are ranked by weighted distance (bust 0.45, waist 0.35, hip 0.20).
 
+**Confidence, and the decision to say nothing.** Three things we actually know decide whether we
+answer at all: how the body numbers were obtained, how clearly the winning size beats the
+runner-up, and how much fit history the brand has and how much it agrees with itself — plus a
+sanity check that the winning size fits at all rather than being the least-bad option in the run.
+Below the threshold the UI names no size and hands over to the brand's published size chart. A
+shopper between two sizes on a thin-history brand is exactly where a wrong answer costs a return,
+and *"we don't know yet, here is the chart"* is the honest output. `engine/confidence.ts` holds
+the weights; the withholding case is covered by tests.
+
 **No confidence percentage is shown to shoppers.** There is no validation data behind this
 heuristic, so a number would imply a probability of being right that it cannot support. Shoppers
-see qualitative language — *Strong match*, *Good match*, *Closest available size*, plus an optional
-*Consider sizing up / down*. An internal `matchScore` is retained for ranking and analytics and is
-explicitly documented as an algorithmic score, not a probability.
+see qualitative language — *High / Medium confidence*, *Strong match*, *Good match*, *Closest
+available size*, plus an optional *Consider sizing up / down*. An internal `matchScore` is
+retained for ranking and analytics and is explicitly documented as an algorithmic score, not a
+probability.
+
+**Brand fit behaviour is derived, not declared.** `engine/brandFitHistory.ts` aggregates every
+brand's review fit feedback and any kept/returned outcomes the shopper has reported into three
+numbers: how much evidence exists, which way the brand runs, and how much that evidence agrees
+with itself. The published label is the prior, and the observation is shrunk toward it in
+proportion to the evidence — `weight / (weight + 20)` — so a thin brand stays close to its own
+chart and a well-evidenced one is driven by what happened. A reported return is weighted six
+times a review, because it is an outcome rather than an opinion.
+
+**The loop closes.** After an order is placed, the confirmation asks *did it fit?* per line, with
+a reason. The answer goes straight back into that brand's history and visibly moves the applied
+correction, the confidence, and — with enough agreeing reports — the size itself. `/metrics` shows
+the per-brand table with the shift each report caused.
 
 **Product-specific by construction.** Each brand has its own published chart (block + grade) *and*
-its own real-world sizing behaviour. One profile (165 cm / 60 kg / regular) gets:
+its own observed sizing behaviour. One measured profile (35 / 29.5 / 38.5, 164 cm, regular) gets:
 
-| Product | Cut | Brand sizing | Size |
+| Product | Cut | Brand reads as | Size |
 | --- | --- | --- | --- |
-| Libas Anarkali Maxi | regular | Runs large | **S** |
-| AND Belted Shirt Dress | regular | True to size | **M** |
-| Vero Moda Ruched Bodycon | slim | Runs small | **L** |
-| Kazo Sequin Party Dress | slim | Runs small | **L** |
-| W for Woman Tiered Midi | relaxed | Runs large | **XS** |
+| Libas Anarkali Maxi | regular | usually runs large | **S** |
+| AND Belted Shirt Dress | regular | consistently true to its chart | **M** |
+| Global Desi Boho Maxi | relaxed | usually true to its chart | **S** |
+| Vero Moda Ruched Bodycon | slim | usually runs small | **L** |
+| Kazo Sequin Party Dress | slim | usually runs small | **L** |
+| Biba Chikankari A-Line | regular | *(between sizes — withheld)* | **—** |
 
-**Privacy.** Height and weight live in `localStorage` and nowhere else. There is no network call in
+**Privacy.** The fit profile lives in `localStorage` and nowhere else. There is no network call in
 the feature, no photograph, and no computer vision. Analytics events carry the *decision* (which
 size was recommended, which was chosen) and never a body measurement — there is a test asserting
-this.
+this over every event the app can emit.
 
-**Measurement.** Eleven events go through one abstraction with pluggable sinks —
+**Measurement.** Every event goes through one abstraction with pluggable sinks —
 `product_view`, `fit_cta_clicked`, `fit_profile_started`, `fit_profile_completed`,
 `fit_recommendation_shown`, `fit_recommendation_accepted`, `size_changed_after_recommendation`,
-`size_selected`, `add_to_bag`, `checkout_started`, `purchase`. `registerSink()` connects a real
-provider without touching a call site.
+`size_selected`, `add_to_bag`, `checkout_started`, `purchase`, `wishlist_viewed`,
+`wishlist_item_saved`, `wishlist_item_resolved`, `wishlist_resolve_all`, `wishlist_add_to_bag`
+and `fit_outcome_reported`. `registerSink()` connects a real provider without touching a call
+site.
+
+`/metrics` maps those onto the nine metric names the success criteria are written in —
+`profile_started`, `profile_completed`, `recommendation_shown`, `recommendation_followed`,
+`size_selected`, `added_to_bag`, `wishlist_item_resolved`, `order_placed`, `return_reported` —
+and shows the count each one has actually recorded in this browser, alongside the raw event
+behind it. A count of zero means the event has not fired here, not that the metric is missing.
 
 Every event carries `experiment_group`, `product_id`, `category` and, where relevant,
 `recommended_size`, `selected_size`, `changed_from_recommendation` and `fit_profile_used`.

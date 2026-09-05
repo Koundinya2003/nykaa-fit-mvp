@@ -2,10 +2,19 @@ import type { BodyMeasurements } from '@/types';
 import type { BodyShape, FitGender, FitProfile } from '../types/fitTypes';
 
 /* =========================================================================
-   Body estimation.
+   Body estimation — the FALLBACK path only.
 
-   Turns height + weight (+ optional age and body shape) into estimated bust,
-   waist and hip in inches.
+   A profile that carries real bust/waist/hip measurements needs none of this:
+   `bodyFor` returns those numbers untouched. Everything below exists for the
+   shopper who does not have a tape measure to hand, and turns height + weight
+   (+ optional age and body shape) into ESTIMATED bust, waist and hip in
+   inches.
+
+   That estimate is a proxy, and the whole point of the measured path is that
+   it is not one: 34-28-38 means the same thing at Kazo and at W for Woman,
+   whereas "62 kg" has to be guessed into girths before any brand chart can
+   be consulted. Confidence is capped for this path accordingly — see
+   `confidence.ts`.
 
    The model is a girth index rather than a raw BMI lookup. Approximating the
    torso as a cylinder of roughly constant density, volume ∝ height × girth²,
@@ -77,7 +86,17 @@ const SHAPE_ADJUSTMENTS: Record<BodyShape, Partial<BodyMeasurements>> = {
   athletic: { bust: 0.5, waist: -0.8 },
 };
 
-export function estimateBody(profile: FitProfile): BodyMeasurements {
+/** Inputs the girth model needs. Split out from FitProfile so the model can
+ *  be exercised without constructing a whole profile. */
+export interface EstimateInput {
+  heightCm: number;
+  weightKg: number;
+  gender: FitGender;
+  age?: number;
+  bodyShape?: BodyShape;
+}
+
+export function estimateBody(profile: EstimateInput): BodyMeasurements {
   const model = modelFor(profile.gender);
   const g = girthIndex(profile.heightCm, profile.weightKg);
   const refG = girthIndex(model.refHeightCm, model.refWeightKg);
@@ -111,4 +130,30 @@ export function estimateBody(profile: FitProfile): BodyMeasurements {
 
 function roundTenth(n: number): number {
   return Math.round(n * 10) / 10;
+}
+
+/**
+ * The body the engine reasons about.
+ *
+ * Measured profiles are used verbatim — that is the entire argument for
+ * asking for measurements. Estimated profiles fall through to the girth
+ * model above.
+ */
+export function bodyFor(profile: FitProfile): BodyMeasurements {
+  if (profile.method === 'measured' && profile.measurements) {
+    return {
+      bust: roundTenth(profile.measurements.bust),
+      waist: roundTenth(profile.measurements.waist),
+      hip: roundTenth(profile.measurements.hip),
+    };
+  }
+  return estimateBody({
+    heightCm: profile.heightCm,
+    // A profile can only reach here on the estimated path, where weight is
+    // required by the form; the fallback keeps a corrupted record usable.
+    weightKg: profile.weightKg ?? 60,
+    gender: profile.gender,
+    age: profile.age,
+    bodyShape: profile.bodyShape,
+  });
 }

@@ -7,10 +7,14 @@ import {
   useState,
   type ReactNode,
 } from 'react';
-import type { BagItem, PriceSummary, Product } from '@/types';
+import type { BagItem, PriceSummary, Product, WishlistEntry } from '@/types';
 import { getProductById } from '@/data/products';
 import { useLocalStorage } from '@/hooks/useLocalStorage';
 import { bagKey, summarise } from '@/utils/format';
+// Imported from the analytics module directly rather than the feature's
+// barrel: the barrel pulls in components that import this context, and the
+// resulting cycle can leave `track` undefined at module-init time.
+import { track } from '@/features/nykaa-fit/analytics/fitAnalytics';
 
 /* =========================================================================
    One small context holds everything that must survive navigation: the bag,
@@ -27,7 +31,7 @@ interface Toast {
 
 interface ShopValue {
   bag: BagItem[];
-  wishlist: string[];
+  wishlist: WishlistEntry[];
   summary: PriceSummary;
   toasts: Toast[];
   addToBag: (product: Product, size: string, colorName: string, quantity?: number) => void;
@@ -37,6 +41,8 @@ interface ShopValue {
   clearBag: () => void;
   isWishlisted: (productId: string) => boolean;
   toggleWishlist: (product: Product) => void;
+  /** Replaces the whole wishlist. Used by /demo to seed a walkthrough. */
+  setWishlistEntries: (entries: WishlistEntry[]) => void;
   dismissToast: (id: number) => void;
 }
 
@@ -46,9 +52,34 @@ const BAG_KEY = 'nykaafit.bag.v1';
 const WISHLIST_KEY = 'nykaafit.wishlist.v1';
 const MAX_QTY = 5;
 
+/**
+ * The first build stored the wishlist as bare product ids, with no record of
+ * when anything was saved. Those entries are kept — losing somebody's saved
+ * items to a schema change is not acceptable — and dated to now, which is the
+ * only honest thing we can say about them.
+ */
+function migrateWishlist(raw: unknown): WishlistEntry[] {
+  if (!Array.isArray(raw)) return [];
+  const now = Date.now();
+  return raw
+    .map((item): WishlistEntry | null => {
+      if (typeof item === 'string') return { productId: item, addedAt: now };
+      if (
+        item &&
+        typeof (item as WishlistEntry).productId === 'string' &&
+        typeof (item as WishlistEntry).addedAt === 'number'
+      ) {
+        return item as WishlistEntry;
+      }
+      return null;
+    })
+    .filter((e): e is WishlistEntry => e !== null);
+}
+
 export function ShopProvider({ children }: { children: ReactNode }) {
   const [bag, setBag] = useLocalStorage<BagItem[]>(BAG_KEY, []);
-  const [wishlist, setWishlist] = useLocalStorage<string[]>(WISHLIST_KEY, []);
+  const [storedWishlist, setWishlist] = useLocalStorage<unknown[]>(WISHLIST_KEY, []);
+  const wishlist = useMemo(() => migrateWishlist(storedWishlist), [storedWishlist]);
   const [toasts, setToasts] = useState<Toast[]>([]);
 
   const pushToast = useCallback((toast: Omit<Toast, 'id'>) => {
@@ -137,23 +168,41 @@ export function ShopProvider({ children }: { children: ReactNode }) {
   const clearBag = useCallback(() => setBag([]), [setBag]);
 
   const isWishlisted = useCallback(
-    (productId: string) => wishlist.includes(productId),
+    (productId: string) => wishlist.some((e) => e.productId === productId),
     [wishlist],
   );
 
   const toggleWishlist = useCallback(
     (product: Product) => {
       setWishlist((prev) => {
-        const has = prev.includes(product.id);
+        const entries = migrateWishlist(prev);
+        const has = entries.some((e) => e.productId === product.id);
         pushToast({
           message: has ? 'Removed from wishlist' : `${product.brand} saved to wishlist`,
           actionLabel: has ? undefined : 'View Wishlist',
           actionTo: has ? undefined : '/wishlist',
         });
-        return has ? prev.filter((id) => id !== product.id) : [...prev, product.id];
+        // Saving starts the 30-day clock the primary metric is measured over,
+        // so it is an event in its own right rather than a UI state change.
+        if (!has) {
+          track('wishlist_item_saved', {
+            product_id: product.id,
+            brand: product.brand,
+            category: product.subcategory,
+            value: product.price,
+          });
+        }
+        return has
+          ? entries.filter((e) => e.productId !== product.id)
+          : [...entries, { productId: product.id, addedAt: Date.now() }];
       });
     },
     [setWishlist, pushToast],
+  );
+
+  const setWishlistEntries = useCallback(
+    (entries: WishlistEntry[]) => setWishlist(entries),
+    [setWishlist],
   );
 
   const summary = useMemo(() => summarise(bag, getProductById), [bag]);
@@ -171,6 +220,7 @@ export function ShopProvider({ children }: { children: ReactNode }) {
       clearBag,
       isWishlisted,
       toggleWishlist,
+      setWishlistEntries,
       dismissToast,
     }),
     [
@@ -185,6 +235,7 @@ export function ShopProvider({ children }: { children: ReactNode }) {
       clearBag,
       isWishlisted,
       toggleWishlist,
+      setWishlistEntries,
       dismissToast,
     ],
   );

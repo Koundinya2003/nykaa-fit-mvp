@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import { setTourVisible } from '@/utils/tourState';
 import { SERVICE_PROMISES } from '@/data/homeContent';
 import { ReturnIcon, ShieldIcon, TruckIcon, CheckIcon } from './Icons';
 import '@/styles/layout.css';
@@ -88,9 +89,28 @@ export default function Footer() {
             <li>Illustrated product imagery, generated locally</li>
             <li>Bag, wishlist &amp; fit profile in localStorage</li>
             <li>
+              <Link to="/demo" className="footer__link footer__link--inline">
+                Evaluator walkthrough
+              </Link>
+            </li>
+            <li>
+              <Link to="/metrics" className="footer__link footer__link--inline">
+                Success metrics
+              </Link>
+            </li>
+            <li>
               <Link to="/fit-lab" className="footer__link footer__link--inline">
                 Nykaa Fit — Lab
               </Link>
+            </li>
+            <li>
+              <button
+                type="button"
+                className="footer__link footer__link--inline"
+                onClick={() => setTourVisible(true)}
+              >
+                Show the &ldquo;what to try&rdquo; strip
+              </button>
             </li>
           </ul>
         </div>

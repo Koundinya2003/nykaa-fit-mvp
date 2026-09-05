@@ -29,10 +29,14 @@ export default function FitPanel({ open, title, subtitle, onClose, children }: P
     document.addEventListener('keydown', onKey);
 
     // Move focus into the dialog so keyboard users are not left behind it.
+    // `preventScroll` keeps the browser from scrolling the focused control
+    // into view inside the sheet — on a small screen that skipped straight
+    // past the first section of the form.
     const focusTarget = panelRef.current?.querySelector<HTMLElement>(
       'input, button, [tabindex]:not([tabindex="-1"])',
     );
     focusTarget?.focus({ preventScroll: true });
+    panelRef.current?.querySelector('.fit-panel__body')?.scrollTo({ top: 0 });
 
     return () => {
       document.body.style.overflow = previousOverflow;

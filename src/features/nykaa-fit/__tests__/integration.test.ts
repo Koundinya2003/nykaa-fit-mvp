@@ -29,9 +29,21 @@ import { assignVariant, hashToUnitInterval } from '../experiment/variant';
 
 const SIZE_ORDER = ['XS', 'S', 'M', 'L', 'XL', 'XXL'];
 
+/** The fallback path — kept as the default shopper here because the
+ *  migration and persistence tests below are about exactly that shape. */
 const SHOPPER: Omit<FitProfile, 'createdAt' | 'updatedAt'> = {
+  method: 'estimated',
   heightCm: 165,
   weightKg: 60,
+  gender: 'female',
+  preferredFit: 'regular',
+};
+
+/** The primary path. */
+const MEASURED_SHOPPER: Omit<FitProfile, 'createdAt' | 'updatedAt'> = {
+  method: 'measured',
+  measurements: { bust: 35, waist: 29.5, hip: 38.5 },
+  heightCm: 164,
   gender: 'female',
   preferredFit: 'regular',
 };
@@ -66,6 +78,21 @@ describe('catalogue recommendations', () => {
       expect(rec, p.id).not.toBeNull();
       expect(p.sizes).toContain(rec!.recommendedSize);
     });
+  });
+
+  it('never returns high confidence on the estimated path', () => {
+    PRODUCTS.filter(isFitEligible).forEach((p) => {
+      const rec = recommendForProduct(profile, p)!;
+      expect(rec.confidence.level, p.id).not.toBe('high');
+    });
+  });
+
+  it('can reach high confidence on the measured path', () => {
+    const measured: FitProfile = { ...MEASURED_SHOPPER, createdAt: 0, updatedAt: 0 };
+    const levels = PRODUCTS.filter(isFitEligible).map(
+      (p) => recommendForProduct(measured, p)!.confidence.level,
+    );
+    expect(levels).toContain('high');
   });
 
   it('does not give the same shopper the same size everywhere', () => {
