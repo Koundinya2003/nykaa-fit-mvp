@@ -2,7 +2,13 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { PRODUCTS, getProductById } from '@/data/products';
 import type { Product, WishlistEntry } from '@/types';
 import type { FitProfile } from '../types/fitTypes';
-import { resolveWishlist, resolveWishlistItem, savedAgoLabel, daysSince } from '../utils/wishlistFit';
+import {
+  resolveWishlist,
+  resolveWishlistItem,
+  savedAgoLabel,
+  reasonLabel,
+  daysSince,
+} from '../utils/wishlistFit';
 import { isFitEligible } from '../utils/eligibility';
 import { __resetFitProfileCache, clearFitProfile, migrateProfile } from '../utils/fitStorage';
 import {
@@ -362,5 +368,60 @@ describe('the demo seed', () => {
     // "Confirmed" is a claim an estimated body cannot support — this is the
     // concrete payoff for giving real measurements.
     expect(resolveWishlist(pairsForSeed, estimated, NOW).counts.ready).toBe(0);
+  });
+});
+
+describe('why an item needs a decision', () => {
+  it('never blames the estimated path when the profile was measured', () => {
+    const { wishlist } = seedDemo(NOW);
+    const pairsForSeed = wishlist.map((entry) => ({
+      product: getProductById(entry.productId)!,
+      entry,
+    }));
+    const profile: FitProfile = { ...DEMO_PROFILE, createdAt: 0, updatedAt: 1 };
+    const resolution = resolveWishlist(pairsForSeed, profile, NOW);
+
+    const decide = resolution.items.filter((i) => i.group === 'decide');
+    expect(decide.length).toBeGreaterThan(0);
+    decide.forEach((item) => {
+      const label = reasonLabel(item.reason);
+      expect(label, item.product.id).not.toMatch(/measurements are estimated/i);
+      expect(label, item.product.id).not.toMatch(/height and weight/i);
+    });
+  });
+
+  it('does say so when the profile really was estimated', () => {
+    const { wishlist } = seedDemo(NOW);
+    const pairsForSeed = wishlist.map((entry) => ({
+      product: getProductById(entry.productId)!,
+      entry,
+    }));
+    const estimated: FitProfile = {
+      method: 'estimated',
+      heightCm: 164,
+      weightKg: 60,
+      gender: 'female',
+      preferredFit: 'regular',
+      createdAt: 0,
+      updatedAt: 1,
+    };
+    const labels = resolveWishlist(pairsForSeed, estimated, NOW)
+      .items.filter((i) => i.group === 'decide')
+      .map((i) => reasonLabel(i.reason));
+    expect(labels.some((l) => /estimated from height and weight/i.test(l))).toBe(true);
+  });
+
+  it('always names the size it is talking about', () => {
+    const { wishlist } = seedDemo(NOW);
+    const pairsForSeed = wishlist.map((entry) => ({
+      product: getProductById(entry.productId)!,
+      entry,
+    }));
+    const profile: FitProfile = { ...DEMO_PROFILE, createdAt: 0, updatedAt: 1 };
+    resolveWishlist(pairsForSeed, profile, NOW)
+      .items.filter((i) => i.group === 'decide' && i.size)
+      .forEach((item) => {
+        expect(reasonLabel(item.reason), item.product.id).toContain(item.size!);
+      });
   });
 });

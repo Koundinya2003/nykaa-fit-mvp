@@ -60,7 +60,7 @@ export type WishlistReason =
   | { kind: 'out-of-stock'; size: string }
   | { kind: 'substituted'; wanted: string; offered: string }
   | { kind: 'between-sizes'; size: string; hint: string }
-  | { kind: 'estimated-only'; size: string }
+  | { kind: 'not-confirmed'; size: string; why: string }
   | { kind: 'low-confidence'; why: string }
   | { kind: 'ineligible' }
   | { kind: 'no-profile' };
@@ -97,6 +97,14 @@ export function savedAgoLabel(days: number): string {
   return `saved ${days} days ago`;
 }
 
+/** Splices a sentence into the middle of another one without shouting. */
+function lowerFirst(sentence: string): string {
+  // "We don't ..." -> "we don't ...", but "XS is ..." keeps its capital.
+  const [first] = sentence;
+  const secondIsUpper = /[A-Z]/.test(sentence[1] ?? '');
+  return secondIsUpper ? sentence : first.toLowerCase() + sentence.slice(1);
+}
+
 export function reasonLabel(reason: WishlistReason): string {
   switch (reason.kind) {
     case 'in-stock':
@@ -107,8 +115,8 @@ export function reasonLabel(reason: WishlistReason): string {
       return `${reason.wanted} is sold out — ${reason.offered} is the closest available`;
     case 'between-sizes':
       return `You sit between sizes here — ${reason.hint.toLowerCase()}`;
-    case 'estimated-only':
-      return `${reason.size} is in stock, but your measurements are estimated — worth a check against the chart`;
+    case 'not-confirmed':
+      return `${reason.size} is in stock, but not confirmed — ${reason.why}`;
     case 'low-confidence':
       return reason.why;
     case 'ineligible':
@@ -224,10 +232,10 @@ export function resolveWishlistItem(
     };
   }
 
-  // "Confirmed" is a high bar, and it is the bar the measured path exists to
-  // clear. A size derived from estimated girths is a usable answer, not a
-  // confirmed one, so it lands here rather than in "ready to buy" — which is
-  // what makes giving us three real measurements worth doing.
+  // "Confirmed" is a high bar. Anything short of it is a usable answer, not
+  // a settled one, so it lands here rather than in "ready to buy" — and the
+  // row says WHICH of the confidence inputs is short, rather than assuming
+  // it is always the estimated body. On a measured profile it usually isn't.
   if (recommendation.confidence.level !== 'high') {
     return {
       ...base,
@@ -235,7 +243,11 @@ export function resolveWishlistItem(
       recommendation,
       size,
       inStock: true,
-      reason: { kind: 'estimated-only', size },
+      reason: {
+        kind: 'not-confirmed',
+        size,
+        why: lowerFirst(recommendation.confidence.limitingFactor),
+      },
     };
   }
 
