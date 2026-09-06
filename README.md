@@ -1,4 +1,4 @@
-# Nykaa Fit — MVP
+# Nykaa Fit — MVP (nykaa-fit-mvp.vercel.app)
 
 A Nykaa Fashion–style shopping prototype with **Nykaa Fit**: personalised size guidance on the
 product page, built to *reduce uncertainty before you buy*.
