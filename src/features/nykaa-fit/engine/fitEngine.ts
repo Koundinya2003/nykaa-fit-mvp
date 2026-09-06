@@ -269,14 +269,24 @@ function buildReceipt(
  * strong enough to silently move a number computed from a published chart,
  * so both are surfaced here for her to weigh.
  */
+/** The published label conjugated for a plural subject: "Runs small" is
+ *  written for one garment, and the note talks about all of them. */
+const BRAND_LABEL_PLURAL: Record<string, string> = {
+  'Runs small': 'run small',
+  'Runs large': 'run large',
+  'True to size': 'are true to size',
+};
+
 function buildNotes(product: FitProductInput, personalNotes: FitNote[]): FitNote[] {
   const notes: FitNote[] = [];
 
   if (product.brandSizing && product.brandSizing.label !== 'True to size') {
+    const phrase =
+      BRAND_LABEL_PLURAL[product.brandSizing.label] ?? product.brandSizing.label.toLowerCase();
     notes.push({
       id: 'brand-sizing',
       source: 'brand',
-      label: `${product.brand} publishes that its garments ${product.brandSizing.label.toLowerCase()}`,
+      label: `${product.brand} publishes that its garments ${phrase}`,
       body: `${product.brandSizing.note} We size from this brand's own chart, so this note is context rather than something we have already applied.`,
       direction: product.brandSizing.label === 'Runs small' ? 'up' : 'down',
     });

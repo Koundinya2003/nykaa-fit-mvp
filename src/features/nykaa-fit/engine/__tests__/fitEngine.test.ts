@@ -322,3 +322,20 @@ describe('advice is never arithmetic', () => {
     expect(withNotes.notes).toContainEqual(personal[0]);
   });
 });
+
+describe('note wording', () => {
+  it('conjugates the brand note for a plural subject', () => {
+    const small = recommendSize(
+      profile(ON_M),
+      product({ brandSizing: { label: 'Runs small', note: 'x' } }),
+    )!;
+    const large = recommendSize(
+      profile(ON_M),
+      product({ brandSizing: { label: 'Runs large', note: 'x' } }),
+    )!;
+    // "its garments runs small" is what naive lowercasing produces.
+    expect(small.notes[0].label).toContain('its garments run small');
+    expect(large.notes[0].label).toContain('its garments run large');
+    expect(small.notes[0].label).not.toContain('garments runs');
+  });
+});
