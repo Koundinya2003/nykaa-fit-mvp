@@ -1,0 +1,406 @@
+<title>Nykaa Fit MVP</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:ital,opsz,wght@0,6..96,500;0,6..96,700;0,6..96,800;1,6..96,500;1,6..96,700&family=Karla:ital,wght@0,400;0,600;0,700;1,400&family=Red+Hat+Mono:wght@400;500;600&display=swap">
+<style>
+/* Identity: a tailor's fitting room. Blush pattern paper, aubergine ink, a rose accent, a yellow measuring tape running through the hero, sage for the honest "no answer". Editorial Bodoni over plain Karla. */
+:root {
+  --paper: #fbf1f2;
+  --card: #fffafa;
+  --ink: #2b1530;
+  --muted: #6e5670;
+  --rose: #cf1f66;
+  --sage: #4f7a5a;
+  --tape: #f2c14e;
+  --line: #e7ccd3;
+  --wash: #f4e1e5;
+  --display: "Bodoni Moda", "Didot", Georgia, serif;
+  --body: "Karla", system-ui, sans-serif;
+  --mono: "Red Hat Mono", ui-monospace, Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper: #1a0f1d; --card: #241628; --ink: #f7e8ef; --muted: #c2a7bd; --rose: #ff78a9;
+    --sage: #9fd0aa; --tape: #f2c14e; --line: #3e2843; --wash: #2c1b31;
+  }
+}
+:root[data-theme="dark"] {
+  --paper: #1a0f1d; --card: #241628; --ink: #f7e8ef; --muted: #c2a7bd; --rose: #ff78a9;
+  --sage: #9fd0aa; --tape: #f2c14e; --line: #3e2843; --wash: #2c1b31;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--body);
+  font-size: 15px;
+  line-height: 1.5;
+}
+.sheet { width: 960px; margin: 0 auto; padding: 12px 0; display: grid; }
+.panel { position: relative; padding: 32px 48px 38px; }
+.num { font: 600 12px/1 var(--mono); letter-spacing: .14em; text-transform: uppercase; color: var(--rose); }
+.num span { color: var(--muted); }
+h2 { font: 700 44px/1.02 var(--display); letter-spacing: -.01em; margin: 10px 0 10px; max-width: 800px; }
+h2 i { font-weight: 500; color: var(--rose); }
+.lede { color: var(--muted); font-size: 16px; max-width: 680px; }
+.mono { font-family: var(--mono); }
+@keyframes rise { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+@keyframes pop { from { opacity: 0; transform: scale(.5); } to { opacity: 1; transform: none; } }
+@keyframes fillx { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+@keyframes wipe { from { clip-path: inset(0 100% 0 0); } to { clip-path: inset(0 0 0 0); } }
+@keyframes stamp { from { opacity: 0; transform: scale(1.6) rotate(-8deg); } to { opacity: 1; transform: rotate(-4deg); } }
+
+/* ---------- hero ---------- */
+.hero { padding-top: 38px; padding-bottom: 30px; }
+.hero .top { display: grid; grid-template-columns: 1.25fr 1fr; gap: 40px; align-items: end; }
+.hero h1 { font: 800 92px/0.92 var(--display); letter-spacing: -.02em; margin-top: 14px; }
+.hero h1 i { font-weight: 500; color: var(--rose); }
+.hero .pitch { font-size: 16px; }
+.hero .pitch b { font-weight: 700; }
+.hero .live { display: inline-block; margin-top: 12px; font: 500 12.5px/1 var(--mono); padding: 8px 10px; border: 1.5px solid var(--ink); }
+.hero .live b { color: var(--rose); font-weight: 600; }
+.tapewrap { position: relative; margin: 34px -48px 0; height: 120px; overflow: hidden; }
+.tape { position: absolute; left: -40px; top: 30px; height: 58px; width: 1040px;
+  background-color: var(--tape);
+  background-image: linear-gradient(90deg, #2b1530 0 2px, transparent 2px), linear-gradient(90deg, #2b1530 0 1.5px, transparent 1.5px), linear-gradient(90deg, rgba(43,21,48,.55) 0 1px, transparent 1px);
+  background-size: 80px 26px, 40px 17px, 10px 10px; background-repeat: repeat-x; }
+.tape .n { position: absolute; top: 28px; font: 600 15px/1 var(--mono); color: #2b1530; transform: translateX(-50%); }
+.tape .sz { position: absolute; bottom: 0; font: 700 12px/1 var(--mono); color: var(--tape); background: #2b1530; padding: 3px 6px; transform: translateX(-50%); }
+.marker { position: absolute; left: 520px; top: 4px; bottom: 6px; width: 3px; margin-left: -1px; background: var(--rose); animation: measure 8s cubic-bezier(.45,.05,.3,1) infinite; }
+@keyframes measure { 0% { left: 200px; } 28% { left: 760px; } 50% { left: 440px; } 64%, 100% { left: 520px; } }
+.marker::before { content: ""; position: absolute; top: 0; left: -7px; border: 8px solid transparent; border-top: 11px solid var(--rose); }
+.marker span { position: absolute; left: 12px; top: 0; white-space: nowrap; font: 600 12px/1 var(--mono); color: var(--rose); animation: blink 2.4s ease-in-out infinite; }
+@keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: .35; } }
+.stats { display: grid; grid-template-columns: repeat(5, 1fr); margin-top: 14px; border-top: 1px solid var(--ink); }
+.stat { padding: 14px 16px 0 0; }
+.stat b { display: block; font: 700 46px/1 var(--display); }
+.stat:nth-child(3) b { color: var(--rose); }
+.stat span { font-size: 13px; color: var(--muted); }
+.hyp { margin-top: 20px; display: grid; grid-template-columns: 150px 1fr; gap: 20px; padding: 14px 0 0; border-top: 1px dashed var(--line); }
+.hyp b { font: 600 11.5px/1.4 var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--sage); }
+.hyp p { font: italic 500 17px/1.45 var(--display); }
+.disc { margin-top: 10px; font: 400 12px/1.5 var(--mono); color: var(--muted); }
+
+/* ---------- engine ---------- */
+.engine { background: var(--card); }
+.eq { display: grid; grid-template-columns: 1fr 40px 1fr 40px 1.1fr; align-items: stretch; margin-top: 26px; }
+.term { padding: 16px 18px; border: 1.5px solid var(--ink); animation: rise .6s ease-out both; }
+.term h3 { font: 700 21px/1.15 var(--display); margin-bottom: 6px; }
+.term p { font-size: 13.5px; color: var(--muted); }
+.term .chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.term .chips span { font: 500 12px/1 var(--mono); padding: 6px 8px; background: var(--wash); }
+.term .chips span.off { background: none; border: 1px dashed var(--muted); color: var(--muted); }
+.term.out { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+.term.out p { color: var(--paper); opacity: .8; }
+.op { display: grid; place-items: center; font: 500 34px/1 var(--display); color: var(--rose); animation: pop .4s ease-out both; }
+.then { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; margin-top: 22px; }
+.then div { padding-top: 12px; border-top: 3px solid var(--rose); font-size: 14px; animation: wipe .7s ease-out both; }
+.then div:nth-child(2) { border-color: var(--sage); }
+.then div:nth-child(3) { border-color: var(--ink); }
+.then b { display: block; font: 700 18px/1.2 var(--display); margin-bottom: 4px; }
+.deleted { margin-top: 22px; display: flex; gap: 18px; align-items: center; font-size: 14px; }
+.deleted .x { flex: none; font: 600 12px/1 var(--mono); text-transform: uppercase; letter-spacing: .08em; padding: 8px 10px; border: 2px solid var(--rose); color: var(--rose); animation: stamp .5s ease-out 1.6s both; }
+
+/* ---------- confidence ---------- */
+.cgrid { display: grid; grid-template-columns: 1.05fr 1fr; gap: 44px; margin-top: 22px; }
+.formula { font: 500 20px/1.4 var(--mono); padding: 16px 18px; background: var(--card); border-left: 4px solid var(--rose); }
+.formula em { font-style: normal; color: var(--rose); }
+.formula .s { color: var(--sage); }
+.sig { list-style: none; margin-top: 14px; }
+.sig li { display: grid; grid-template-columns: 120px 1fr; gap: 12px; padding: 8px 0; border-bottom: 1px solid var(--line); font-size: 14px; animation: rise .5s ease-out both; }
+.sig b { font: 600 13px/1.5 var(--mono); color: var(--rose); }
+.steps h3, .gauge h3 { font: 700 20px/1.2 var(--display); margin-bottom: 4px; }
+.steps .sub, .gauge .sub { font-size: 13px; color: var(--muted); margin-bottom: 12px; }
+.bars { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; align-items: end; height: 130px; border-bottom: 1.5px solid var(--ink); position: relative; }
+.bars .b { background: var(--rose); position: relative; transform-origin: bottom; animation: grow .7s ease-out both; }
+.bars .b:first-child { background: var(--line); }
+@keyframes grow { from { transform: scaleY(0); } to { transform: scaleY(1); } }
+.bars .b span { position: absolute; top: -20px; left: 0; right: 0; text-align: center; font: 600 13px/1 var(--mono); }
+.bars .hl { position: absolute; left: 0; right: 0; border-top: 2px dashed var(--sage); }
+.bars .hl span { position: absolute; left: 0; top: -18px; font: 600 11px/1 var(--mono); color: var(--sage); background: var(--paper); padding-right: 4px; }
+.blab { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-top: 6px; font: 400 11.5px/1.3 var(--mono); color: var(--muted); text-align: center; }
+.gauge { margin-top: 26px; }
+.scale { display: grid; grid-template-columns: 45fr 27fr 28fr; height: 40px; font: 600 12px/40px var(--mono); text-align: center; }
+.scale div { animation: wipe .6s ease-out both; }
+.scale .w { background: var(--wash); color: var(--muted); }
+.scale .m { background: var(--tape); color: #2b1530; }
+.scale .h { background: var(--sage); color: var(--paper); }
+.ticks { display: grid; grid-template-columns: 45fr 27fr 28fr; font: 400 11.5px/1.6 var(--mono); color: var(--muted); }
+.notes { list-style: none; margin-top: 16px; font-size: 13.5px; }
+.notes li { padding: 6px 0 6px 18px; position: relative; }
+.notes li::before { content: ""; position: absolute; left: 0; top: 13px; width: 9px; height: 2px; background: var(--rose); }
+
+/* ---------- brands ---------- */
+.brands { background: var(--card); }
+.profile { display: inline-flex; gap: 0; margin-top: 18px; border: 1.5px solid var(--ink); font: 500 13px/1 var(--mono); }
+.profile span { padding: 9px 12px; }
+.profile span + span { border-left: 1.5px solid var(--ink); }
+.profile b { color: var(--rose); font-weight: 600; }
+.dresses { display: grid; grid-template-columns: repeat(5, 1fr); gap: 14px; margin-top: 22px; }
+.dress { position: relative; padding: 14px 14px 16px; background: var(--paper); border-top: 6px solid var(--c); animation: rise .6s ease-out both; }
+.dress svg { display: block; width: 64px; height: 76px; margin: 2px 0 8px; }
+.dress .nm { font: 700 15.5px/1.2 var(--display); min-height: 38px; }
+.dress .cut { font: 500 11.5px/1 var(--mono); text-transform: uppercase; letter-spacing: .08em; color: var(--muted); margin-top: 6px; }
+.dress .size { position: absolute; right: 12px; top: 14px; font: 800 44px/1 var(--display); color: var(--rose); animation: stamp .5s ease-out both; animation-delay: inherit; }
+.dress .conf { margin-top: 10px; display: inline-block; font: 600 11px/1 var(--mono); padding: 5px 8px; text-transform: uppercase; letter-spacing: .06em; }
+.conf.hi { background: var(--sage); color: var(--paper); }
+.conf.md { background: var(--tape); color: #2b1530; }
+.punch { margin-top: 22px; display: grid; grid-template-columns: 1fr 1fr; gap: 36px; }
+.punch h3 { font: 700 20px/1.2 var(--display); margin-bottom: 6px; }
+.punch p { font-size: 14px; color: var(--muted); }
+.receipt { font: 400 12.5px/1.75 var(--mono); padding: 12px 14px; border: 1.5px dashed var(--ink); background: var(--paper); }
+.receipt b { font-weight: 600; }
+.receipt .no { color: var(--rose); }
+
+/* ---------- experiment ---------- */
+.xgrid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 30px; margin-top: 24px; }
+.xgrid h3 { font: 700 20px/1.2 var(--display); margin-bottom: 8px; }
+.arms { display: grid; grid-template-columns: 1fr 1fr; gap: 0; border: 1.5px solid var(--ink); }
+.arms div { padding: 10px 12px; font-size: 13px; }
+.arms div + div { border-left: 1.5px solid var(--ink); background: var(--wash); }
+.arms b { display: block; font: 600 11.5px/1.4 var(--mono); text-transform: uppercase; letter-spacing: .08em; color: var(--rose); }
+.dial { margin-top: 14px; font-size: 13px; }
+.dial .track { position: relative; height: 6px; background: var(--line); margin: 22px 6px 8px; }
+.dial .track i { position: absolute; top: -6px; width: 18px; height: 18px; border-radius: 50%; background: var(--rose); left: calc(100% - 9px); animation: knob 2.2s ease-in-out .4s both; }
+@keyframes knob { 0% { left: -9px; } 50% { left: calc(50% - 9px); } 100% { left: calc(100% - 9px); } }
+.dial .lab { display: flex; justify-content: space-between; font: 500 11.5px/1.4 var(--mono); color: var(--muted); }
+.dial p { margin-top: 10px; color: var(--muted); }
+.events { display: flex; flex-wrap: wrap; gap: 5px; }
+.events span { font: 400 11px/1 var(--mono); padding: 5px 6px; background: var(--wash); animation: pop .35s ease-out both; }
+.metrics { list-style: none; counter-reset: m; margin-top: 4px; }
+.metrics li { counter-increment: m; display: grid; grid-template-columns: 26px 1fr; font: 500 12.5px/1.95 var(--mono); border-bottom: 1px solid var(--line); animation: rise .4s ease-out both; }
+.metrics li::before { content: counter(m); font: 700 15px/1.75 var(--display); color: var(--rose); }
+.guards { margin-top: 26px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 0; border-top: 1.5px solid var(--ink); }
+.guards div { padding: 14px 18px 0 0; font-size: 13.5px; }
+.guards b { display: block; font: 700 17px/1.25 var(--display); margin-bottom: 4px; color: var(--sage); }
+
+/* ---------- scope ---------- */
+.scope { background: #2b1530; color: #fbf1f2; }
+.scope .num { color: var(--tape); }
+.scope h2 i { color: var(--tape); }
+.sgrid { display: grid; grid-template-columns: 0.9fr 1.1fr 1fr; gap: 32px; margin-top: 22px; }
+.sgrid h3 { font: 700 19px/1.2 var(--display); margin-bottom: 8px; color: var(--tape); }
+.sgrid ul { list-style: none; font-size: 13.5px; }
+.sgrid li { padding: 6px 0; border-bottom: 1px solid rgba(127,127,127,.35); animation: rise .5s ease-out both; }
+.cmd { font: 400 13px/1.8 var(--mono); padding: 12px 14px; border: 1px solid rgba(127,127,127,.5); }
+.cmd .c { opacity: .6; }
+
+/* ---------- responsive ---------- */
+@media (max-width: 980px) { .sheet { width: 100%; } }
+</style>
+
+<main class="sheet">
+
+<section class="panel hero" data-panel="01_hero" data-alt="Nykaa Fit MVP, a product experiment. Headline: Will this fit? Personalised size guidance on the product page of a fashion shopping prototype, built to reduce uncertainty before you buy. It sizes your saved items across brands from your own measurements, and it is allowed to say it does not know. Live at nykaa-fit-mvp.vercel.app, start at /fit-profile. A measuring tape marked with the store chart sizes XS to XXL; a marker sweeps along it and settles at bust 35 inches, between S and M, the example profile used in this README. Numbers: 60 products in the mock catalogue, up to 3 measurements (bust, waist, hip), 0 network calls in the fit feature, 17 tracked events, 9 success metrics. Hypothesis: for shoppers already interested in a fashion product, uncertainty about fit can reduce purchase confidence and contribute to size related returns; personalised fit guidance may increase conversion while reducing size related returns. Nothing in this build demonstrates that it does. Not affiliated with Nykaa.">
+  <div class="top">
+    <div>
+      <div class="num">Nykaa Fit MVP <span>· a product experiment</span></div>
+      <h1>Will this <i>fit?</i></h1>
+    </div>
+    <div>
+      <p class="pitch">Personalised size guidance on the product page of a fashion store prototype. It sizes your saved items across brands from <b>your own measurements</b>, shows its working, and is <b>allowed to say it does not know.</b></p>
+      <span class="live">live <b>nykaa-fit-mvp.vercel.app</b> · start at /fit-profile</span>
+    </div>
+  </div>
+  <div class="tapewrap">
+    <div class="tape" id="tape"></div>
+    <div class="marker"><span>bust 35 in</span></div>
+  </div>
+  <div class="stats">
+    <div class="stat"><b>60</b><span>products in the mock catalogue</span></div>
+    <div class="stat"><b>3</b><span>measurements, at most</span></div>
+    <div class="stat"><b>0</b><span>network calls in the fit feature</span></div>
+    <div class="stat"><b>17</b><span>tracked events</span></div>
+    <div class="stat"><b>9</b><span>success metrics</span></div>
+  </div>
+  <div class="hyp">
+    <b>The hypothesis</b>
+    <p>Uncertainty about fit can reduce purchase confidence and drive size related returns. Personalised fit guidance may lift conversion while cutting those returns. Nothing in this build demonstrates that it does.</p>
+  </div>
+  <div class="disc">Not affiliated with Nykaa. Brand names and size charts are mock data so the catalogue reads realistically.</div>
+</section>
+
+<section class="panel engine" data-panel="02_engine" data-alt="How the recommendation works. Two inputs, and they are the only two. Your measurements, only the ones you entered, blanks stay blank: bust, waist, hip. Plus the room you asked for: this garment's cut and your preferred fit, slim, regular or relaxed. Equals the body to look up, then the nearest size in this brand's published chart, then a confidence check that is allowed to decline. Deterministic and offline: no AI API, no model, no randomness and no network call. Partial profiles are first class: the weights (bust 0.45, waist 0.35, hip 0.2) renormalise over whatever you gave. Every answer carries a receipt built in the same function call. Nothing is estimated: an earlier height and weight estimator was deleted, because a guess presented as your body is worse than no answer.">
+  <div class="num">01 <span>· the engine</span></div>
+  <h2>Two inputs, one chart, <i>and the right to decline.</i></h2>
+  <p class="lede">Deterministic and offline: no AI API, no model, no randomness and no network call anywhere in the feature.</p>
+  <div class="eq">
+    <div class="term" style="animation-delay:.1s"><h3>Your measurements</h3><p>Only the ones you entered. Blanks stay blank.</p><div class="chips"><span>bust 35</span><span>waist 29.5</span><span class="off">hip, optional</span></div></div>
+    <div class="op" style="animation-delay:.5s">+</div>
+    <div class="term" style="animation-delay:.6s"><h3>The room you asked for</h3><p>This garment's cut plus your preferred fit.</p><div class="chips"><span>slim</span><span>regular</span><span>relaxed</span></div></div>
+    <div class="op" style="animation-delay:1s">=</div>
+    <div class="term out" style="animation-delay:1.1s"><h3>The body to look up</h3><p>Matched to the nearest size in this brand's published chart, then a confidence check that may decline.</p></div>
+  </div>
+  <div class="then">
+    <div style="animation-delay:1.3s"><b>Partial profiles are first class</b>Weights (bust 0.45, waist 0.35, hip 0.2) renormalise over what you gave. Skipped measurements are compared against nothing.</div>
+    <div style="animation-delay:1.55s"><b>No size is also an answer</b>Below the threshold the UI names no size and hands over to the published chart.</div>
+    <div style="animation-delay:1.8s"><b>Every answer has a receipt</b>Built in the same function call as the size, so the explanation cannot drift from the computation.</div>
+  </div>
+  <div class="deleted"><span class="x">estimator deleted</span><span>An earlier build derived bust, waist and hip from height and weight. That is guessing, and a guess presented as your body is worse than no answer.</span></div>
+</section>
+
+<section class="panel" data-panel="03_confidence" data-alt="Confidence, and the decision to say nothing. score = completeness times (closeness times 0.5 plus separation times 0.5). Completeness: how much of your body you told us. Closeness: how well the winning size fits. Separation: how clearly it beats the runner up. Completeness is a ceiling, not another term to average: 0 measurements 0, 1 measurement 0.55, 2 measurements 0.8, 3 measurements 1. High confidence needs a score of 0.72 or more, so a one measurement profile can reach medium but never high. Medium is 0.45 up to 0.72; below 0.45 no size is named. Sitting exactly between two sizes scores near zero on separation and is withheld however complete the profile is. A sold out size substitution multiplies the score by 0.8. Shoppers see High or Medium, never a percentage, because there is no validation data behind the heuristic.">
+  <div class="num">02 <span>· confidence</span></div>
+  <h2>Between two sizes? <i>It says so.</i></h2>
+  <div class="cgrid">
+    <div>
+      <div class="formula">score = <em>completeness</em> × (closeness × 0.5 + <span class="s">separation</span> × 0.5)</div>
+      <ul class="sig">
+        <li style="animation-delay:.3s"><b>completeness</b>How much of your body you told us. A ceiling, not a term to average in.</li>
+        <li style="animation-delay:.5s"><b>closeness</b>How well the winning size fits those measurements.</li>
+        <li style="animation-delay:.7s"><b>separation</b>How clearly it beats the runner up. A tie is a coin flip, not an answer.</li>
+      </ul>
+      <ul class="notes">
+        <li>Exactly between two sizes: separation near zero, so no size is named, however complete the profile.</li>
+        <li>Substituting a sold out size multiplies the score by 0.8.</li>
+        <li>Shoppers see High or Medium. Never a percentage: there is no validation data behind it.</li>
+      </ul>
+    </div>
+    <div>
+      <div class="steps">
+        <h3>Completeness is the ceiling</h3>
+        <div class="sub">Best possible score by number of measurements given</div>
+        <div class="bars">
+          <div class="b" style="height:2%;animation-delay:.4s"><span>0</span></div>
+          <div class="b" style="height:55%;animation-delay:.6s"><span>0.55</span></div>
+          <div class="b" style="height:80%;animation-delay:.8s"><span>0.8</span></div>
+          <div class="b" style="height:100%;animation-delay:1s"><span>1</span></div>
+          <div class="hl" style="bottom:72%"><span>high from 0.72</span></div>
+        </div>
+        <div class="blab"><span>none</span><span>one</span><span>two</span><span>three</span></div>
+      </div>
+      <div class="gauge">
+        <h3>What the shopper sees</h3>
+        <div class="sub">One measurement can reach medium, never high</div>
+        <div class="scale"><div class="w" style="animation-delay:1.2s">no size named</div><div class="m" style="animation-delay:1.45s">Medium</div><div class="h" style="animation-delay:1.7s">High</div></div>
+        <div class="ticks"><span>0</span><span>0.45</span><span>0.72 to 1</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="panel brands" data-panel="04_brands" data-alt="Product specific by construction. One profile, bust 35, waist 29.5, hip 38.5 inches, regular fit, against different brands' charts: Kazo Sequin Party Dress, slim cut, size L, high confidence. AND Belted Shirt Dress, regular cut, size M, high. ONLY Puff Sleeve Dress, regular cut, size M, high. W for Woman Tiered Midi, relaxed cut, size S, high. Libas Anarkali Maxi, regular cut, size S, medium. Same body, four different letters, and nothing about other shoppers produced that spread: it is the charts. Advice is never arithmetic: a brand's runs small note and your own reported kept or returned outcomes are shown beside the recommendation, never folded into it. The receipt lists the measurements used with values, the ones skipped marked not given and not estimated either, the brand's chart rows, the ease target split into cut and preference, and what was not used.">
+  <div class="num">03 <span>· same body, different charts</span></div>
+  <h2>One profile, five dresses, <i>four different letters.</i></h2>
+  <div class="profile"><span>bust <b>35</b></span><span>waist <b>29.5</b></span><span>hip <b>38.5</b></span><span>regular fit</span></div>
+  <div class="dresses" id="dresses">
+    <div class="dress" style="--c:var(--rose);animation-delay:.2s" data-shape="slim"><div class="size">L</div><div class="nm">Kazo Sequin Party Dress</div><div class="cut">slim cut</div><span class="conf hi">High</span></div>
+    <div class="dress" style="--c:var(--sage);animation-delay:.45s" data-shape="regular"><div class="size">M</div><div class="nm">AND Belted Shirt Dress</div><div class="cut">regular cut</div><span class="conf hi">High</span></div>
+    <div class="dress" style="--c:var(--tape);animation-delay:.7s" data-shape="regular"><div class="size">M</div><div class="nm">ONLY Puff Sleeve Dress</div><div class="cut">regular cut</div><span class="conf hi">High</span></div>
+    <div class="dress" style="--c:var(--ink);animation-delay:.95s" data-shape="relaxed"><div class="size">S</div><div class="nm">W for Woman Tiered Midi</div><div class="cut">relaxed cut</div><span class="conf hi">High</span></div>
+    <div class="dress" style="--c:var(--muted);animation-delay:1.2s" data-shape="maxi"><div class="size">S</div><div class="nm">Libas Anarkali Maxi</div><div class="cut">regular cut</div><span class="conf md">Medium</span></div>
+  </div>
+  <div class="punch">
+    <div>
+      <h3>Advice is never arithmetic</h3>
+      <p>A brand's “runs small” note and the kept or returned outcomes you report yourself sit <i>beside</i> the size, never folded into it. On one data point, your judgement beats ours. Nothing about other shoppers produced the spread above: it is the charts.</p>
+    </div>
+    <div class="receipt"><b>Every size carries a receipt</b><br>measurements used, with values<br><span class="no">skipped: not given, not estimated either</span><br>the brand's chart rows<br>ease target: cut + your preference, in inches<br>what was not used</div>
+  </div>
+</section>
+
+<section class="panel" data-panel="05_experiment" data-alt="The experiment and what it measures. Control is the existing product page; treatment is the product page plus Nykaa Fit, enabled only for women's dresses. Primary metric: product view to add to bag conversion. The business metric it serves: the share of users who buy at least one wishlisted item within 30 days of saving it. Assignment is a deterministic FNV 1a hash of a persisted randomisation unit, so a visitor always lands in the same arm. TREATMENT_ALLOCATION is the only dial: 0 everyone control, 0.5 a live test, 1 everyone treatment, the dev default; override with ?fit=on or ?fit=off or from /fit-lab. 17 events go through one analytics abstraction with pluggable sinks. /metrics maps them onto nine metrics: profile started, profile completed, recommendation shown, recommendation followed, size selected, added to bag, wishlist item resolved, order placed, return reported. Guardrails enforced by tests: body measurements never enter an event, and the engine cannot import the review corpus or a body estimator. The Fit Lab withholds rates below a display floor: 1 of 1 is shown as a count, never as 100%.">
+  <div class="num">04 <span>· the experiment</span></div>
+  <h2>Built to be measured, <i>not to look good.</i></h2>
+  <p class="lede">The business metric: the share of users who buy at least one wishlisted item within 30 days of saving it. A wishlist is a queue of unresolved questions, and “will this fit?” is the one that never resolves on its own.</p>
+  <div class="xgrid">
+    <div>
+      <h3>Two arms</h3>
+      <div class="arms"><div><b>control</b>Existing product page</div><div><b>treatment</b>Product page + Nykaa Fit (women's dresses)</div></div>
+      <div class="dial">
+        <div class="track"><i></i></div>
+        <div class="lab"><span>0 all control</span><span>0.5 live test</span><span>1 dev default</span></div>
+        <p><span class="mono">TREATMENT_ALLOCATION</span> is the only dial. Deterministic FNV 1a hash, so a visitor always lands in the same arm. Primary metric: product view to add to bag.</p>
+      </div>
+    </div>
+    <div>
+      <h3>17 events, one pipe</h3>
+      <div class="events" id="events"></div>
+      <p style="font-size:13px;color:var(--muted);margin-top:10px">Pluggable sinks, <span class="mono">localStorage</span> by default. <span class="mono">registerSink()</span> connects a real provider without touching a call site.</p>
+    </div>
+    <div>
+      <h3>9 success metrics</h3>
+      <ol class="metrics" id="metrics"></ol>
+    </div>
+  </div>
+  <div class="guards">
+    <div><b>No body in the data</b>Measurements never enter an event. A test checks every event the app can emit.</div>
+    <div><b>No borrowed opinions</b>A test walks every engine file and fails on any import of the review corpus or a body estimator.</div>
+    <div><b>No fake rates</b>The Fit Lab withholds rates below a display floor: “1 of 1” is a count, never 100%.</div>
+  </div>
+</section>
+
+<section class="panel scope" data-panel="06_scope" data-alt="Stack, scope and what production would need. Stack: React 19 and TypeScript built with Vite 7, react router 7, React Context state persisted to localStorage, hand written CSS on a token layer, vitest unit tests; product images are locally generated SVG garment illustrations with four views per colourway. Run: npm install, npm run dev, open localhost port 5173. Scope: mock catalogue with no backend, checkout is review and confirm with no payment, sign in is out of scope, size charts are plausible mock data and the engine has never been calibrated against real purchases or returns. Production would need real brand size charts, garment measurements, historical orders keyed to size, size specific return reason codes, post delivery fit feedback, and a powered A/B test.">
+  <div class="num">05 <span>· honest scope</span></div>
+  <h2>What it is, what it is not, <i>what it would need.</i></h2>
+  <div class="sgrid">
+    <div>
+      <h3>Built with</h3>
+      <ul>
+        <li style="animation-delay:.1s">React 19 + TypeScript, Vite 7</li>
+        <li style="animation-delay:.2s">react router 7</li>
+        <li style="animation-delay:.3s">Context state in localStorage</li>
+        <li style="animation-delay:.4s">Hand written CSS, token layer</li>
+        <li style="animation-delay:.5s">vitest unit tests</li>
+        <li style="animation-delay:.6s">Generated SVG garments, 4 views each</li>
+      </ul>
+      <div class="cmd" style="margin-top:14px">npm install<br>npm run dev<br><span class="c"># localhost:5173</span></div>
+    </div>
+    <div>
+      <h3>Deliberately out of scope</h3>
+      <ul>
+        <li style="animation-delay:.3s">Mock catalogue only, no live API, no backend</li>
+        <li style="animation-delay:.4s">Checkout is review and confirm; no payment, no address</li>
+        <li style="animation-delay:.5s">Sign in is visibly disabled, not dead</li>
+        <li style="animation-delay:.6s">Size charts are plausible mock data, not real published charts</li>
+        <li style="animation-delay:.7s">The engine is a heuristic, never calibrated on real purchases or returns</li>
+        <li style="animation-delay:.8s">Guardrail metrics are named in the Fit Lab, not instrumented</li>
+      </ul>
+    </div>
+    <div>
+      <h3>Production would need</h3>
+      <ul>
+        <li style="animation-delay:.5s">Real brand size charts</li>
+        <li style="animation-delay:.6s">Garment measurements</li>
+        <li style="animation-delay:.7s">Historical orders keyed to size</li>
+        <li style="animation-delay:.8s">Size specific return reason codes</li>
+        <li style="animation-delay:.9s">Post delivery fit feedback</li>
+        <li style="animation-delay:1s">A powered A/B test</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+</main>
+
+<script>
+(function () {
+  // measuring tape ticks: one inch per 80px, numbers 29 to 40
+  const tape = document.getElementById("tape");
+  let h = "";
+  for (let i = 1; i < 13; i++) {
+    const inch = 28 + i;
+    h += '<span class="n" style="left:' + (i * 80) + 'px">' + inch + '</span>';
+  }
+  // generic women's apparel chart bust values (src/data/sizeCharts.ts)
+  const sizes = [["XS", 32], ["S", 34], ["M", 36], ["L", 38], ["XL", 40], ["XXL", 42]];
+  sizes.forEach(function (s) { h += '<span class="sz" style="left:' + ((s[1] - 28) * 80) + 'px">' + s[0] + '</span>'; });
+  tape.innerHTML = h;
+
+  // dress silhouettes
+  const shapes = {
+    slim: "M24 4 L40 4 L42 18 L38 32 L44 74 L20 74 L26 32 L22 18 Z",
+    regular: "M22 4 L42 4 L44 20 L40 30 L52 74 L12 74 L24 30 L20 20 Z",
+    relaxed: "M22 4 L42 4 L46 22 L44 30 L60 74 L4 74 L20 30 L18 22 Z",
+    maxi: "M23 2 L41 2 L44 18 L40 26 L58 76 L6 76 L24 26 L20 18 Z"
+  };
+  document.querySelectorAll(".dress").forEach(function (d) {
+    const svg = '<svg viewBox="0 0 64 78" aria-hidden="true"><path d="' + shapes[d.dataset.shape] + '" fill="var(--c)" opacity=".9"/><path d="M26 4 Q32 12 38 4" fill="none" stroke="var(--paper)" stroke-width="2"/></svg>';
+    d.insertAdjacentHTML("afterbegin", svg);
+  });
+
+  const events = ["product_view","fit_cta_clicked","fit_profile_started","fit_profile_completed","fit_recommendation_shown","fit_recommendation_accepted","size_changed_after_recommendation","size_selected","add_to_bag","checkout_started","purchase","wishlist_viewed","wishlist_item_saved","wishlist_item_resolved","wishlist_resolve_all","wishlist_add_to_bag","fit_outcome_reported"];
+  document.getElementById("events").innerHTML = events.map(function (e, i) { return '<span style="animation-delay:' + (0.3 + i * 0.07).toFixed(2) + 's">' + e + '</span>'; }).join("");
+  const metrics = ["profile_started","profile_completed","recommendation_shown","recommendation_followed","size_selected","added_to_bag","wishlist_item_resolved","order_placed","return_reported"];
+  document.getElementById("metrics").innerHTML = metrics.map(function (m, i) { return '<li style="animation-delay:' + (0.6 + i * 0.12).toFixed(2) + 's">' + m + '</li>'; }).join("");
+})();
+</script>
